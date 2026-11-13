@@ -1,0 +1,3095 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EduTrack Pro — Faculty Log & Attendance Tracker (Dr. Alorika Chatterjee)</title>
+
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            200: '#c7d2fe',
+                            300: '#a5b4fc',
+                            400: '#818cf8',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            800: '#3730a3',
+                            900: '#312e81',
+                            950: '#1e1b4b',
+                        }
+                    }
+                }
+            }
+        };
+    </script>
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- SheetJS (Excel .xlsx Export) -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+    <!-- jsPDF & jsPDF-AutoTable (Official PDF Export) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        .student-card-transition {
+            transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+    </style>
+</head>
+<body class="min-h-full text-slate-800 flex flex-col">
+
+    <!-- Top Navigation Bar -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between py-3.5 gap-3">
+                <!-- Brand -->
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-600 to-indigo-800 flex items-center justify-center text-white shadow-md shadow-brand-500/20">
+                            <i data-lucide="graduation-cap" class="w-6 h-6"></i>
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h1 class="text-lg font-bold tracking-tight text-slate-900">EduTrack Pro</h1>
+                                <span class="text-[11px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-brand-50 text-brand-700 border border-brand-200">Faculty Portal</span>
+                            </div>
+                            <p class="text-xs text-slate-500">Daily Campus Log, Class Attendance & Exam Invigilation Tracker</p>
+                        </div>
+                    </div>
+                    <!-- Mobile Reset Demo Data Button -->
+                    <div class="flex items-center gap-1.5 md:hidden">
+                        <button onclick="openAuthAccountModal()" class="px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-brand-50 text-brand-700 border border-brand-200 flex items-center gap-1">
+                            <i data-lucide="user-check" class="w-3.5 h-3.5"></i>
+                            <span id="mobile-auth-status-text">Account</span>
+                        </button>
+                        <button onclick="resetDemoData()" title="Reset Sample Data" class="p-2 text-slate-500 hover:text-brand-600 rounded-lg hover:bg-slate-100">
+                            <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Navigation Tabs -->
+                <nav class="flex items-center gap-1.5 bg-slate-100/90 p-1.5 rounded-xl border border-slate-200/70 overflow-x-auto">
+                    <button onclick="switchTab('entry')" id="tab-btn-entry" class="tab-btn flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all whitespace-nowrap bg-white text-brand-600 shadow-sm">
+                        <i data-lucide="calendar-plus" class="w-4 h-4"></i>
+                        <span>Daily Log & Class Entry</span>
+                    </button>
+                    <button onclick="switchTab('reports')" id="tab-btn-reports" class="tab-btn flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all whitespace-nowrap text-slate-600 hover:text-slate-900">
+                        <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
+                        <span>Reports & Export</span>
+                        <span id="badge-total-logs" class="ml-1 px-1.5 py-0.5 text-[11px] rounded-full bg-brand-100 text-brand-700 font-bold">0</span>
+                    </button>
+                    <button onclick="switchTab('roster')" id="tab-btn-roster" class="tab-btn flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all whitespace-nowrap text-slate-600 hover:text-slate-900">
+                        <i data-lucide="users" class="w-4 h-4"></i>
+                        <span>Semester Roster Manager</span>
+                    </button>
+                </nav>
+
+                <!-- Faculty Profile / Google Account Cloud Sync Actions -->
+                <div class="hidden md:flex items-center gap-3">
+                    <div onclick="openAuthAccountModal()" class="cursor-pointer group flex items-center gap-2.5 px-3 py-1.5 rounded-xl hover:bg-slate-100 border border-transparent hover:border-slate-200 transition">
+                        <div id="header-user-avatar" class="w-8 h-8 rounded-full bg-brand-600 text-white font-bold text-xs flex items-center justify-center shadow-xs overflow-hidden">
+                            AC
+                        </div>
+                        <div class="text-right">
+                            <div class="flex items-center justify-end gap-1.5">
+                                <p id="faculty-name-display" class="text-xs font-bold text-slate-800 group-hover:text-brand-600 transition">Dr. Alorika Chatterjee</p>
+                                <span id="cloud-sync-indicator" class="w-2 h-2 rounded-full bg-emerald-500" title="Cloud Sync Active"></span>
+                            </div>
+                            <p id="faculty-dept-display" class="text-[11px] text-slate-500">Dept. of Physics, The Heritage College</p>
+                        </div>
+                    </div>
+
+                    <button id="header-google-auth-btn" onclick="openAuthAccountModal()" class="flex items-center gap-2 text-xs font-semibold text-slate-700 hover:text-brand-700 bg-white hover:bg-brand-50 px-3 py-2 rounded-xl border border-slate-200 shadow-2xs transition">
+                        <svg class="w-4 h-4" viewBox="0 0 24 24">
+                            <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
+                            <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.11-6.72-4.96H1.29v3.14C3.26 21.3 7.31 24 12 24z"/>
+                            <path fill="#FBBC05" d="M5.28 14.24c-.24-.72-.38-1.49-.38-2.24s.14-1.52.38-2.24V6.62H1.29C.47 8.24 0 10.06 0 12s.47 3.76 1.29 5.38l3.99-3.14z"/>
+                            <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.62l3.99 3.14c.95-2.85 3.6-4.96 6.72-4.96z"/>
+                        </svg>
+                        <span id="header-google-btn-text">Google Account</span>
+                    </button>
+
+                    <button onclick="resetDemoData()" title="Reload Sample Demo Logs" class="flex items-center gap-1.5 text-xs font-medium text-slate-600 hover:text-brand-600 bg-slate-100 hover:bg-brand-50 px-2.5 py-2 rounded-lg border border-slate-200 transition">
+                        <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+                        <span>Reset Demo</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Cloud Account Status Sub-Banner -->
+    <div class="bg-indigo-950 text-indigo-100 border-b border-indigo-900/80 text-xs">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex flex-wrap items-center justify-between gap-2">
+            <div class="flex items-center gap-2">
+                <span id="subbanner-status-dot" class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span id="subbanner-account-text" class="font-medium">Connecting to your personal cloud workspace...</span>
+            </div>
+            <div class="flex items-center gap-3">
+                <span id="subbanner-uid-pill" class="hidden sm:inline-block text-[11px] font-mono px-2 py-0.5 rounded bg-indigo-900/90 text-indigo-200 border border-indigo-800"></span>
+                <button onclick="openAuthAccountModal()" class="underline hover:text-white font-semibold flex items-center gap-1">
+                    <span>Switch Google Account / Edit Faculty Profile</span>
+                    <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+        <!-- ========================================== -->
+        <!-- TAB 1: DAILY LOG & CLASS / EXAM ENTRY      -->
+        <!-- ========================================== -->
+        <section id="tab-entry" class="space-y-6">
+            
+            <!-- 1. Daily Campus Arrival & Departure Card -->
+            <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+                <div class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 px-6 py-4 text-white flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div class="flex items-center gap-3">
+                        <div class="p-2 rounded-xl bg-white/10 backdrop-blur-sm">
+                            <i data-lucide="clock" class="w-5 h-5 text-indigo-300"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-base font-bold">1. Daily Campus Arrival & Departure Log</h2>
+                            <p id="banner-faculty-subtitle" class="text-xs text-slate-300">Dr. Alorika Chatterjee • Dept. of Physics, The Heritage College</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span id="campus-duration-badge" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-200 border border-emerald-400/30">
+                            <i data-lucide="timer" class="w-3.5 h-3.5"></i>
+                            <span id="campus-hours-text">7h 30m on campus</span>
+                        </span>
+                    </div>
+                </div>
+
+                <div class="p-5 sm:p-6">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+                        <!-- Date Selector -->
+                        <div>
+                            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">Log Date</label>
+                            <div class="relative">
+                                <input type="date" id="log-date" onchange="handleDateChange()" class="w-full rounded-xl border border-slate-300 bg-slate-50/60 px-3.5 py-2.5 text-sm font-semibold text-slate-800 focus:bg-white focus:border-brand-600 focus:ring-2 focus:ring-brand-500/20 outline-none transition">
+                            </div>
+                        </div>
+
+                        <!-- Arrival Time -->
+                        <div>
+                            <div class="flex items-center justify-between mb-1.5">
+                                <label class="text-xs font-semibold uppercase tracking-wider text-slate-500">Arrival Time (In)</label>
+                                <button type="button" onclick="punchNow('arrival')" class="text-[11px] font-semibold text-brand-600 hover:text-brand-700 flex items-center gap-1">
+                                    <i data-lucide="zap" class="w-3 h-3"></i> Punch In Now
+                                </button>
+                            </div>
+                            <input type="time" id="arrival-time" onchange="updateCampusDuration()" value="09:15" class="w-full rounded-xl border border-slate-300 bg-slate-50/60 px-3.5 py-2.5 text-sm font-semibold text-slate-800 focus:bg-white focus:border-brand-600 focus:ring-2 focus:ring-brand-500/20 outline-none transition">
+                        </div>
+
+                        <!-- Departure Time -->
+                        <div>
+                            <div class="flex items-center justify-between mb-1.5">
+                                <label class="text-xs font-semibold uppercase tracking-wider text-slate-500">Departure Time (Out)</label>
+                                <button type="button" onclick="punchNow('departure')" class="text-[11px] font-semibold text-brand-600 hover:text-brand-700 flex items-center gap-1">
+                                    <i data-lucide="zap" class="w-3 h-3"></i> Punch Out Now
+                                </button>
+                            </div>
+                            <input type="time" id="departure-time" onchange="updateCampusDuration()" value="16:45" class="w-full rounded-xl border border-slate-300 bg-slate-50/60 px-3.5 py-2.5 text-sm font-semibold text-slate-800 focus:bg-white focus:border-brand-600 focus:ring-2 focus:ring-brand-500/20 outline-none transition">
+                        </div>
+
+                        <!-- Save Daily Attendance Timing Button -->
+                        <div>
+                            <button type="button" onclick="saveDailyTimingOnly()" class="w-full flex items-center justify-center gap-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold px-4 py-2.5 text-sm shadow-sm transition">
+                                <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-400"></i>
+                                <span>Update Day Timing</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Quick summary bar for the chosen date -->
+                    <div id="selected-date-summary" class="mt-4 pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
+                        <div class="flex items-center gap-2">
+                            <span class="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
+                            <span id="date-status-label">Showing timing for selected date. Any class or exam duty logged below will automatically link to this date's arrival & departure log.</span>
+                        </div>
+                        <button onclick="switchTab('reports')" class="text-brand-600 hover:underline font-medium flex items-center gap-1">
+                            <span>View all logs for this date</span>
+                            <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. Activity Entry Form + Student Attendance Grid -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                
+                <!-- Left Column: Class / Exam Duty Details (5 cols) -->
+                <div class="lg:col-span-5 bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5 sm:p-6 flex flex-col justify-between">
+                    <div class="space-y-5">
+                        <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+                            <div class="flex items-center gap-2.5">
+                                <div class="w-8 h-8 rounded-lg bg-brand-50 text-brand-600 flex items-center justify-center">
+                                    <i data-lucide="book-open-check" class="w-4 h-4"></i>
+                                </div>
+                                <div>
+                                    <h3 class="text-base font-bold text-slate-900">2. Class & Exam Duty Details</h3>
+                                    <p class="text-xs text-slate-500">Select duty type and fill session particulars</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Duty Type Selector Pills -->
+                        <div>
+                            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Activity / Duty Category</label>
+                            <div class="grid grid-cols-2 gap-2" id="duty-type-group">
+                                <button type="button" onclick="setActivityType('Lecture Class')" data-type="Lecture Class" class="duty-type-btn flex items-center gap-2 px-3 py-2.5 rounded-xl border text-xs font-semibold transition bg-brand-50 border-brand-600 text-brand-700 shadow-sm">
+                                    <i data-lucide="presentation" class="w-4 h-4"></i>
+                                    <span>Lecture Class</span>
+                                </button>
+                                <button type="button" onclick="setActivityType('Lab Session')" data-type="Lab Session" class="duty-type-btn flex items-center gap-2 px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition">
+                                    <i data-lucide="flask-conical" class="w-4 h-4"></i>
+                                    <span>Lab Session</span>
+                                </button>
+                                <button type="button" onclick="setActivityType('Exam Duty')" data-type="Exam Duty" class="duty-type-btn flex items-center gap-2 px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition">
+                                    <i data-lucide="shield-check" class="w-4 h-4"></i>
+                                    <span>Exam Invigilation</span>
+                                </button>
+                                <button type="button" onclick="setActivityType('Tutorial / Extra')" data-type="Tutorial / Extra" class="duty-type-btn flex items-center gap-2 px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition">
+                                    <i data-lucide="sparkles" class="w-4 h-4"></i>
+                                    <span>Tutorial / Extra</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Semester & Time Slot -->
+                        <div class="space-y-2.5">
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-600 mb-1">Semester</label>
+                                    <select id="semester-select" onchange="handleSemesterChange()" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 focus:border-brand-600 outline-none">
+                                        <option value="Sem 1">Semester 1</option>
+                                        <option value="Sem 2">Semester 2</option>
+                                        <option value="Sem 3" selected>Semester 3</option>
+                                        <option value="Sem 4">Semester 4</option>
+                                        <option value="Sem 5">Semester 5</option>
+                                        <option value="Sem 6">Semester 6</option>
+                                        <option value="Sem 7">Semester 7</option>
+                                        <option value="Sem 8">Semester 8</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-600 mb-1">Slot Start <span class="text-rose-500">*</span></label>
+                                    <input type="time" id="slot-start" value="11:15" oninput="checkLiveSlotConflict()" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm font-medium text-slate-800 focus:border-brand-600 outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-600 mb-1">Slot End <span class="text-rose-500">*</span></label>
+                                    <input type="time" id="slot-end" value="12:15" oninput="checkLiveSlotConflict()" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm font-medium text-slate-800 focus:border-brand-600 outline-none">
+                                </div>
+                            </div>
+
+                            <!-- Live Time-Slot Availability / Overlap Indicator -->
+                            <div id="live-conflict-banner" class="rounded-xl px-3.5 py-2.5 text-xs flex items-start gap-2.5 border transition-all bg-emerald-50/70 border-emerald-200 text-emerald-800">
+                                <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-600 shrink-0 mt-0.5"></i>
+                                <div class="flex-1">
+                                    <span class="font-bold">Time Slot Available:</span>
+                                    <span id="live-conflict-text">No overlap with any existing class or duty on this date.</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Dynamic Fields: CLASS TAKEN -->
+                        <div id="class-fields-container" class="space-y-4">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 mb-1">Physics Paper / Course Name & Code <span class="text-rose-500">*</span></label>
+                                <input type="text" id="subject-name" placeholder="e.g. Quantum Mechanics I (PHSA-CC5)" value="Quantum Mechanics I (PHSA-CC5)" class="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm text-slate-800 focus:border-brand-600 outline-none">
+                            </div>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-600 mb-1">Room / Physics Lab No.</label>
+                                    <input type="text" id="class-room" placeholder="e.g. Physics LH-302" value="Physics LH-302" class="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm text-slate-800 focus:border-brand-600 outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-600 mb-1">Topic Covered</label>
+                                    <input type="text" id="class-topic" placeholder="e.g. Wave-Particle Duality & Schrödinger Eq." value="Schrödinger Wave Equation & Operators" class="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm text-slate-800 focus:border-brand-600 outline-none">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Dynamic Fields: EXAM DUTY (Hidden by default unless Exam Duty selected) -->
+                        <div id="exam-fields-container" class="hidden space-y-4 bg-amber-50/70 p-4 rounded-xl border border-amber-200/80">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-bold uppercase tracking-wider text-amber-800 flex items-center gap-1.5">
+                                    <i data-lucide="award" class="w-4 h-4"></i> Exam Invigilation Particulars
+                                </span>
+                                <span class="text-[11px] px-2 py-0.5 rounded bg-amber-200/70 text-amber-900 font-semibold">Exam Duty Mode</span>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Examination Name & Paper Code <span class="text-rose-500">*</span></label>
+                                <input type="text" id="exam-name" placeholder="e.g. CU B.Sc. Sem-5 Theory Exam — Solid State Physics (PHSA-CC12)" value="CU B.Sc. Internal Exam — Solid State Physics (PHSA-CC12)" class="w-full rounded-xl border border-amber-300 bg-white px-3.5 py-2 text-sm text-slate-800 focus:border-amber-600 outline-none">
+                            </div>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1">Exam Hall / Room</label>
+                                    <input type="text" id="exam-hall" placeholder="e.g. Heritage Main Block Hall-201" value="THC Block-B Hall 201" class="w-full rounded-xl border border-amber-300 bg-white px-3.5 py-2 text-sm text-slate-800 focus:border-amber-600 outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1">Duty Role & Shift</label>
+                                    <select id="exam-role" class="w-full rounded-xl border border-amber-300 bg-white px-3 py-2 text-sm font-medium text-slate-800 focus:border-amber-600 outline-none">
+                                        <option value="Invigilator (Morning Shift)">Invigilator (Morning)</option>
+                                        <option value="Invigilator (Afternoon Shift)">Invigilator (Afternoon)</option>
+                                        <option value="Practical Examiner (Physics Lab)">Practical Examiner (Lab)</option>
+                                        <option value="Room Supervisor">Room Supervisor</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="flex items-center justify-between pt-1">
+                                <label class="text-xs font-medium text-amber-900 flex items-center gap-2 cursor-pointer">
+                                    <input type="checkbox" id="exam-track-roster" checked onchange="toggleExamRosterMode()" class="rounded text-amber-600 focus:ring-amber-500">
+                                    <span>Track individual examinee attendance from semester roster</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Remarks / Notes -->
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Remarks / Additional Notes</label>
+                            <textarea id="entry-remarks" rows="2" placeholder="Optional notes about assignment given, lab equipment, or exam incident..." class="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm text-slate-800 focus:border-brand-600 outline-none resize-none"></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Submit Log Button -->
+                    <div class="pt-5 mt-5 border-t border-slate-100">
+                        <button type="button" onclick="saveFullActivityLog()" class="w-full py-3 px-5 rounded-xl bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-700 hover:to-indigo-700 text-white font-bold text-sm shadow-lg shadow-brand-500/25 flex items-center justify-center gap-2 transition transform active:scale-[0.99]">
+                            <i data-lucide="save" class="w-4 h-4"></i>
+                            <span>Save Log & Student Attendance</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Right Column: Interactive Student Attendance Sheet (7 cols) -->
+                <div class="lg:col-span-7 bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5 sm:p-6 flex flex-col">
+                    <!-- Header & Live Counters -->
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h3 class="text-base font-bold text-slate-900">3. Student Attendance Sheet</h3>
+                                <span id="active-sem-pill" class="px-2.5 py-0.5 text-xs font-bold rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">Sem 3</span>
+                            </div>
+                            <p class="text-xs text-slate-500 mt-0.5">Click on any student card to toggle <span class="text-emerald-600 font-semibold">Present (P)</span> or <span class="text-rose-600 font-semibold">Absent (A)</span></p>
+                        </div>
+
+                        <!-- Live Attendance Counters -->
+                        <div class="flex items-center gap-2">
+                            <div class="px-3 py-1.5 rounded-xl bg-slate-100 border border-slate-200 text-center">
+                                <span class="block text-[10px] uppercase font-bold text-slate-400">Total</span>
+                                <span id="stat-total-students" class="text-sm font-extrabold text-slate-800">0</span>
+                            </div>
+                            <div class="px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-center">
+                                <span class="block text-[10px] uppercase font-bold text-emerald-600">Present</span>
+                                <span id="stat-present-students" class="text-sm font-extrabold text-emerald-700">0</span>
+                            </div>
+                            <div class="px-3 py-1.5 rounded-xl bg-rose-50 border border-rose-200 text-center">
+                                <span class="block text-[10px] uppercase font-bold text-rose-600">Absent</span>
+                                <span id="stat-absent-students" class="text-sm font-extrabold text-rose-700">0</span>
+                            </div>
+                            <div class="px-3 py-1.5 rounded-xl bg-brand-50 border border-brand-200 text-center">
+                                <span class="block text-[10px] uppercase font-bold text-brand-600">Rate</span>
+                                <span id="stat-attendance-pct" class="text-sm font-extrabold text-brand-700">0%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Toolbar: Search & Quick Bulk Toggles -->
+                    <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 my-4">
+                        <!-- Filter input -->
+                        <div class="relative flex-1">
+                            <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
+                            <input type="text" id="student-search-input" oninput="renderEntryAttendanceList()" placeholder="Search student by name or roll number..." class="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 bg-slate-50/70 text-xs sm:text-sm focus:bg-white focus:border-brand-500 outline-none">
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="flex items-center gap-1.5 flex-wrap">
+                            <button type="button" onclick="markAllAttendance(true)" class="px-3 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-semibold flex items-center gap-1 transition">
+                                <i data-lucide="check-check" class="w-3.5 h-3.5"></i>
+                                <span>All Present</span>
+                            </button>
+                            <button type="button" onclick="markAllAttendance(false)" class="px-3 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-semibold flex items-center gap-1 transition">
+                                <i data-lucide="user-x" class="w-3.5 h-3.5"></i>
+                                <span>All Absent</span>
+                            </button>
+                            <button type="button" onclick="openQuickAddStudentModal()" class="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold flex items-center gap-1 transition" title="Add Student to this Semester">
+                                <i data-lucide="user-plus" class="w-3.5 h-3.5"></i>
+                                <span>+ Student</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Student Interactive Grid -->
+                    <div id="student-attendance-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-[380px] overflow-y-auto pr-1 flex-1">
+                        <!-- Dynamically populated by JS -->
+                    </div>
+
+                    <!-- Manual Headcount Override Box (When Exam Duty has individual roster unchecked) -->
+                    <div id="manual-headcount-box" class="hidden my-auto py-8 px-6 rounded-2xl bg-slate-50 border border-dashed border-slate-300 text-center space-y-4">
+                        <div class="w-12 h-12 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center mx-auto">
+                            <i data-lucide="users" class="w-6 h-6"></i>
+                        </div>
+                        <div>
+                            <h4 class="text-sm font-bold text-slate-800">Manual Examinee Headcount Mode</h4>
+                            <p class="text-xs text-slate-500 max-w-md mx-auto mt-1">Enter total allotted candidates and total present examinees in the examination hall.</p>
+                        </div>
+                        <div class="flex items-center justify-center gap-4 max-w-xs mx-auto">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 mb-1">Total Candidates</label>
+                                <input type="number" id="manual-total-count" value="40" min="1" oninput="syncManualHeadcount()" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-center font-bold text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-emerald-700 mb-1">Present Candidates</label>
+                                <input type="number" id="manual-present-count" value="38" min="0" oninput="syncManualHeadcount()" class="w-full rounded-xl border border-emerald-400 bg-emerald-50 px-3 py-2 text-center font-bold text-sm text-emerald-800">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Recent Logs Preview at Bottom of Tab 1 -->
+            <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5 sm:p-6">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+                    <div>
+                        <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+                            <i data-lucide="history" class="w-4 h-4 text-brand-600"></i>
+                            <span>Recent Activity Logs</span>
+                        </h3>
+                        <p class="text-xs text-slate-500">Latest classes & exam invigilation duties saved in your logbook</p>
+                    </div>
+                    <button onclick="switchTab('reports')" class="text-xs font-semibold text-brand-600 hover:text-brand-700 flex items-center gap-1">
+                        <span>Open Full Date-Range Report & Export</span>
+                        <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+                    </button>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                                <th class="py-2.5 px-3">Date & Campus Time</th>
+                                <th class="py-2.5 px-3">Type</th>
+                                <th class="py-2.5 px-3">Semester & Slot</th>
+                                <th class="py-2.5 px-3">Subject / Exam Duty Details</th>
+                                <th class="py-2.5 px-3">Attendance</th>
+                                <th class="py-2.5 px-3 text-right">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recent-logs-tbody" class="divide-y divide-slate-100 text-xs sm:text-sm">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- TAB 2: DATE RANGE REPORTS & EXPORT         -->
+        <!-- ========================================== -->
+        <section id="tab-reports" class="hidden space-y-6">
+            
+            <!-- Filter & Export Control Bar -->
+            <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5 sm:p-6 space-y-5">
+                <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                            <i data-lucide="bar-chart-3" class="w-5 h-5 text-brand-600"></i>
+                            <span>Date & Date-Range Log Report & Export Center</span>
+                        </h2>
+                        <p class="text-xs text-slate-500 mt-0.5">Filter by single date, custom date range, semester, or duty category and export to Excel or PDF</p>
+                    </div>
+
+                    <!-- Export Action Buttons -->
+                    <div class="flex flex-wrap items-center gap-2.5">
+                        <button onclick="exportReportToExcel()" class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs sm:text-sm shadow-sm shadow-emerald-500/20 transition">
+                            <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
+                            <span>Export Excel (.xlsx)</span>
+                        </button>
+                        <button onclick="exportReportToPDF()" class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs sm:text-sm shadow-sm shadow-rose-500/20 transition">
+                            <i data-lucide="file-text" class="w-4 h-4"></i>
+                            <span>Export Official PDF</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Filter Controls Grid -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3.5 items-end">
+                    <!-- Filter Mode: Date Range vs Single Date -->
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Filter Mode</label>
+                        <select id="filter-date-mode" onchange="handleFilterModeChange()" class="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-xs sm:text-sm font-semibold text-slate-800 outline-none focus:border-brand-600">
+                            <option value="range" selected>Date Range (From - To)</option>
+                            <option value="single">Single Specific Date</option>
+                            <option value="all">All Dates</option>
+                        </select>
+                    </div>
+
+                    <!-- From Date / Single Date -->
+                    <div id="filter-from-wrapper">
+                        <label id="filter-from-label" class="block text-xs font-semibold text-slate-600 mb-1">From Date</label>
+                        <input type="date" id="filter-from-date" onchange="renderReportView()" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs sm:text-sm font-medium text-slate-800 outline-none focus:border-brand-600">
+                    </div>
+
+                    <!-- To Date -->
+                    <div id="filter-to-wrapper">
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">To Date</label>
+                        <input type="date" id="filter-to-date" onchange="renderReportView()" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs sm:text-sm font-medium text-slate-800 outline-none focus:border-brand-600">
+                    </div>
+
+                    <!-- Semester Filter -->
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Semester</label>
+                        <select id="filter-semester" onchange="renderReportView()" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs sm:text-sm font-medium text-slate-800 outline-none focus:border-brand-600">
+                            <option value="ALL">All Semesters</option>
+                            <option value="Sem 1">Semester 1</option>
+                            <option value="Sem 2">Semester 2</option>
+                            <option value="Sem 3">Semester 3</option>
+                            <option value="Sem 4">Semester 4</option>
+                            <option value="Sem 5">Semester 5</option>
+                            <option value="Sem 6">Semester 6</option>
+                            <option value="Sem 7">Semester 7</option>
+                            <option value="Sem 8">Semester 8</option>
+                        </select>
+                    </div>
+
+                    <!-- Activity / Duty Filter -->
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Activity Type</label>
+                        <select id="filter-type" onchange="renderReportView()" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs sm:text-sm font-medium text-slate-800 outline-none focus:border-brand-600">
+                            <option value="ALL">All Activities</option>
+                            <option value="CLASSES_ONLY">All Classes (Lecture/Lab)</option>
+                            <option value="Lecture Class">Lecture Classes Only</option>
+                            <option value="Lab Session">Lab Sessions Only</option>
+                            <option value="Exam Duty">Exam Invigilation Duty Only</option>
+                            <option value="Tutorial / Extra">Tutorial / Extra Only</option>
+                        </select>
+                    </div>
+
+                    <!-- Quick Reset Filter -->
+                    <div class="flex gap-2">
+                        <button onclick="setQuickDatePreset('today')" class="flex-1 py-2 px-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs transition">Today</button>
+                        <button onclick="setQuickDatePreset('all')" class="flex-1 py-2 px-2.5 rounded-xl bg-brand-50 hover:bg-brand-100 text-brand-700 font-semibold text-xs transition">Show All</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Summary KPI Cards -->
+            <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+                <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm">
+                    <div class="flex items-center justify-between text-slate-400 mb-1">
+                        <span class="text-[11px] font-bold uppercase tracking-wider">Days Logged</span>
+                        <i data-lucide="calendar-check" class="w-4 h-4 text-brand-500"></i>
+                    </div>
+                    <p id="kpi-days" class="text-2xl font-extrabold text-slate-900">0</p>
+                    <p id="kpi-hours-sub" class="text-[11px] text-slate-500 mt-0.5">0 hrs on campus</p>
+                </div>
+
+                <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm">
+                    <div class="flex items-center justify-between text-slate-400 mb-1">
+                        <span class="text-[11px] font-bold uppercase tracking-wider">Classes Taken</span>
+                        <i data-lucide="book-open" class="w-4 h-4 text-indigo-500"></i>
+                    </div>
+                    <p id="kpi-classes" class="text-2xl font-extrabold text-slate-900">0</p>
+                    <p class="text-[11px] text-slate-500 mt-0.5">Lectures, Labs & Tutorials</p>
+                </div>
+
+                <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm">
+                    <div class="flex items-center justify-between text-slate-400 mb-1">
+                        <span class="text-[11px] font-bold uppercase tracking-wider">Exam Duties</span>
+                        <i data-lucide="shield-check" class="w-4 h-4 text-amber-500"></i>
+                    </div>
+                    <p id="kpi-exams" class="text-2xl font-extrabold text-slate-900">0</p>
+                    <p class="text-[11px] text-slate-500 mt-0.5">Invigilation & Supervision</p>
+                </div>
+
+                <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm">
+                    <div class="flex items-center justify-between text-slate-400 mb-1">
+                        <span class="text-[11px] font-bold uppercase tracking-wider">Avg Attendance</span>
+                        <i data-lucide="user-check" class="w-4 h-4 text-emerald-500"></i>
+                    </div>
+                    <p id="kpi-avg-att" class="text-2xl font-extrabold text-emerald-600">0%</p>
+                    <p id="kpi-att-counts" class="text-[11px] text-slate-500 mt-0.5">0 / 0 students</p>
+                </div>
+
+                <div class="col-span-2 md:col-span-1 bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm">
+                    <div class="flex items-center justify-between text-slate-400 mb-1">
+                        <span class="text-[11px] font-bold uppercase tracking-wider">Search Keyword</span>
+                        <i data-lucide="search" class="w-4 h-4 text-slate-400"></i>
+                    </div>
+                    <input type="text" id="report-search" oninput="renderReportView()" placeholder="Subject, student, room..." class="w-full mt-1 px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 bg-slate-50 focus:bg-white focus:border-brand-500 outline-none">
+                </div>
+            </div>
+
+            <!-- Detailed Filtered Report Table -->
+            <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+                <div class="px-6 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                        <h3 class="text-sm font-bold text-slate-900">Detailed Log & Student Attendance Records</h3>
+                        <p id="report-count-subtitle" class="text-xs text-slate-500">Showing matching records</p>
+                    </div>
+                    <div class="text-xs text-slate-500 flex items-center gap-2">
+                        <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-brand-500"></span> Click "View Students" to inspect individual roll-call</span>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50/80 border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                                <th class="py-3 px-4">Date</th>
+                                <th class="py-3 px-4">Arrival / Departure</th>
+                                <th class="py-3 px-4">Activity Type</th>
+                                <th class="py-3 px-4">Sem & Time Slot</th>
+                                <th class="py-3 px-4">Course / Exam Duty Details</th>
+                                <th class="py-3 px-4">Present / Total</th>
+                                <th class="py-3 px-4 text-right">Student Roll-Call & Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="report-table-body" class="divide-y divide-slate-100 text-xs sm:text-sm">
+                            <!-- Dynamically populated -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- TAB 3: SEMESTER ROSTER MANAGER             -->
+        <!-- ========================================== -->
+        <section id="tab-roster" class="hidden space-y-6">
+            <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5 sm:p-6">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-100">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                            <i data-lucide="users" class="w-5 h-5 text-brand-600"></i>
+                            <span>Semester Student Roster Manager</span>
+                        </h2>
+                        <p class="text-xs text-slate-500 mt-0.5">Manage student lists for each semester (Sem 1 to Sem 8) used during class attendance logging</p>
+                    </div>
+
+                    <div class="flex items-center gap-3">
+                        <label class="text-xs font-bold uppercase text-slate-500">Select Semester:</label>
+                        <select id="roster-sem-select" onchange="renderRosterManager()" class="rounded-xl border border-slate-300 bg-slate-50 px-3.5 py-2 text-sm font-bold text-brand-700 outline-none focus:border-brand-600">
+                            <option value="Sem 1">Semester 1</option>
+                            <option value="Sem 2">Semester 2</option>
+                            <option value="Sem 3" selected>Semester 3</option>
+                            <option value="Sem 4">Semester 4</option>
+                            <option value="Sem 5">Semester 5</option>
+                            <option value="Sem 6">Semester 6</option>
+                            <option value="Sem 7">Semester 7</option>
+                            <option value="Sem 8">Semester 8</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 pt-5">
+                    <!-- Add Single or Bulk Students -->
+                    <div class="space-y-4 bg-slate-50 p-4 rounded-xl border border-slate-200/80">
+                        <h3 class="text-sm font-bold text-slate-800">Add Student to Selected Semester</h3>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Roll Number</label>
+                            <input type="text" id="new-student-roll" placeholder="e.g. PHS/25/315" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-600">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Student Full Name</label>
+                            <input type="text" id="new-student-name" placeholder="e.g. Rituparna Sengupta" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-600">
+                        </div>
+                        <button onclick="addStudentToRoster()" class="w-full py-2.5 px-4 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 transition">
+                            <i data-lucide="user-plus" class="w-4 h-4"></i>
+                            <span>Add Student to Roster</span>
+                        </button>
+                    </div>
+
+                    <!-- Current Student List -->
+                    <div class="lg:col-span-2 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <h3 id="roster-list-heading" class="text-sm font-bold text-slate-800">Enrolled Students</h3>
+                            <span id="roster-count-badge" class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-brand-50 text-brand-700">0 Students</span>
+                        </div>
+                        <div id="roster-manager-list" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-[420px] overflow-y-auto pr-1">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ========================================== -->
+    <!-- MODAL: VIEW LOG & EACH STUDENT ATTENDANCE  -->
+    <!-- ========================================== -->
+    <div id="student-detail-modal" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <!-- Modal Header -->
+            <div class="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
+                <div>
+                    <span id="modal-badge-type" class="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded bg-brand-500 text-white">Lecture Class</span>
+                    <h3 id="modal-title" class="text-base font-bold mt-1">Data Structures & Algorithms (CS-301)</h3>
+                    <p id="modal-subtitle" class="text-xs text-slate-300">Date: 2025-02-20 | Sem 3 | Slot: 10:00 - 11:00</p>
+                </div>
+                <button onclick="closeStudentModal()" class="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <!-- Modal Info Bar -->
+            <div id="modal-meta-bar" class="px-6 py-3 bg-slate-50 border-b border-slate-200 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                <!-- Populated dynamically -->
+            </div>
+
+            <!-- Modal Body: Individual Student Roll Call -->
+            <div class="p-6 overflow-y-auto flex-1 space-y-4">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-slate-500">Individual Student Attendance Breakdown</h4>
+                    <div class="flex items-center gap-2">
+                        <button onclick="filterModalStudents('ALL')" id="modal-filter-all" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-900 text-white">All</button>
+                        <button onclick="filterModalStudents('P')" id="modal-filter-p" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100">Present Only</button>
+                        <button onclick="filterModalStudents('A')" id="modal-filter-a" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-rose-50 text-rose-700 hover:bg-rose-100">Absent Only</button>
+                    </div>
+                </div>
+
+                <div id="modal-student-list" class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="px-6 py-3.5 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
+                <button id="modal-single-pdf-btn" class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold transition">
+                    <i data-lucide="file-down" class="w-4 h-4"></i>
+                    <span>Download Session Attendance Sheet (PDF)</span>
+                </button>
+                <button onclick="closeStudentModal()" class="px-4 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs font-semibold transition">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MODAL: DATE & TIME OVERLAP CONFLICT ALERT  -->
+    <!-- ========================================== -->
+    <div id="conflict-alert-modal" class="fixed inset-0 z-50 hidden bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-rose-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <!-- Alert Header -->
+            <div class="px-6 py-4 bg-gradient-to-r from-rose-600 to-red-700 text-white flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+                        <i data-lucide="shield-alert" class="w-6 h-6 text-white"></i>
+                    </div>
+                    <div>
+                        <span class="text-[10px] font-extrabold uppercase tracking-widest px-2 py-0.5 rounded bg-rose-900/50 text-rose-100">Schedule Validation Failed</span>
+                        <h3 id="conflict-modal-title" class="text-base font-bold mt-0.5">Date & Time Slot Overlap Detected!</h3>
+                    </div>
+                </div>
+                <button onclick="closeConflictModal()" class="p-1.5 rounded-lg text-rose-100 hover:text-white hover:bg-white/10 transition">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <!-- Alert Body -->
+            <div class="p-6 space-y-4">
+                <p id="conflict-modal-desc" class="text-xs sm:text-sm text-slate-600 leading-relaxed">
+                    Cannot save this session because the selected time slot overlaps with an already logged activity on the same date.
+                </p>
+                    <!-- Footer -->
+            <div class="px-6 py-3.5 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-2">
+                <button type="button" onclick="signOutCurrentAccount()" class="px-3.5 py-2 rounded-xl text-rose-600 hover:bg-rose-50 font-semibold text-xs flex items-center gap-1.5 transition">
+                    <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
+                    <span>Sign Out / Switch User</span>
+                </button>
+                <div class="flex items-center gap-2">
+                    <button type="button" onclick="closeAuthAccountModal()" class="px-4 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold text-xs transition">Cancel</button>
+                    <button type="button" onclick="saveFacultyProfileChanges()" class="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition">
+                        <i data-lucide="check" class="w-3.5 h-3.5"></i>
+                        <span>Save Profile to Account</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================== -->
+    <!-- INTERACTIVE GOOGLE OAUTH ACCOUNT CHOOSER & LOGIN MODAL     -->
+    <!-- ========================================================== -->
+    <div id="google-oauth-chooser-modal" class="fixed inset-0 z-50 hidden bg-slate-900/75 backdrop-blur-xs flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <!-- Google Top Bar -->
+            <div class="px-6 pt-6 pb-4 text-center border-b border-slate-100">
+                <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-slate-50 border border-slate-200 mb-3 shadow-2xs">
+                    <svg class="w-6 h-6" viewBox="0 0 24 24">
+                        <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
+                        <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.11-6.72-4.96H1.29v3.14C3.26 21.3 7.31 24 12 24z"/>
+                        <path fill="#FBBC05" d="M5.28 14.24c-.24-.72-.38-1.49-.38-2.24s.14-1.52.38-2.24V6.62H1.29C.47 8.24 0 10.06 0 12s.47 3.76 1.29 5.38l3.99-3.14z"/>
+                        <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.62l3.99 3.14c.95-2.85 3.6-4.96 6.72-4.96z"/>
+                    </svg>
+                </div>
+                <h3 id="google-chooser-heading" class="text-lg font-bold text-slate-900">Sign in with Google</h3>
+                <p id="google-chooser-subheading" class="text-xs text-slate-500 mt-1">Choose an account to continue to <span class="font-semibold text-brand-600">EduTrack Pro Faculty Portal</span></p>
+            </div>
+
+            <!-- Step 1: Account Chooser List -->
+            <div id="google-step-chooser" class="p-5 space-y-2.5">
+                <div id="google-saved-accounts-list" class="space-y-2 max-h-60 overflow-y-auto pr-1">
+                    <!-- Populated dynamically with saved Google accounts -->
+                </div>
+
+                <!-- Use Another Google Account Button -->
+                <button type="button" onclick="showGoogleCustomLoginStep()" class="w-full flex items-center gap-3.5 p-3 rounded-2xl border border-slate-200 hover:bg-slate-50 text-left transition">
+                    <div class="w-10 h-10 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center shrink-0">
+                        <i data-lucide="user-plus" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs sm:text-sm font-bold text-slate-800">Use another Google Account</p>
+                        <p class="text-[11px] text-slate-500">Sign in with any Gmail or Google Workspace ID</p>
+                    </div>
+                </button>
+            </div>
+
+            <!-- Step 2: Enter Google Email, Name & Department -->
+            <form id="google-step-form" onsubmit="submitGoogleSignInForm(event)" class="hidden p-6 space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Google Email or Institutional Gmail <span class="text-rose-500">*</span></label>
+                    <input type="email" id="oauth-input-email" required placeholder="e.g. alorika.chatterjee@theheritage.ac.in" class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Faculty Full Name <span class="text-rose-500">*</span></label>
+                    <input type="text" id="oauth-input-name" required placeholder="e.g. Dr. Alorika Chatterjee" class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Department & Institution</label>
+                    <input type="text" id="oauth-input-dept" placeholder="e.g. Dept. of Physics, The Heritage College" value="Dept. of Physics, The Heritage College" class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 outline-none">
+                </div>
+
+                <div class="pt-2 flex items-center justify-between gap-2">
+                    <button type="button" onclick="backToGoogleChooserStep()" class="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition">
+                        Back
+                    </button>
+                    <button type="submit" class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold shadow-md shadow-blue-500/20 flex items-center gap-2 transition">
+                        <span>Sign In with Google</span>
+                        <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            </form>
+
+            <!-- Footer Note -->
+            <div class="px-6 py-3.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400">
+                <span>Google Cloud Workspace Sync</span>
+                <button type="button" id="google-chooser-close-btn" onclick="closeGoogleOAuthChooser()" class="text-slate-500 hover:text-slate-800 font-semibold">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none"></div>
+
+    <!-- ========================================================== -->
+    <!-- FIREBASE CLOUD AUTH & FIRESTORE MODULE INTEGRATION         -->
+    <!-- ========================================================== -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import {
+            getAuth,
+            signInAnonymously,
+            signInWithCustomToken,
+            GoogleAuthProvider,
+            signInWithPopup,
+            onAuthStateChanged
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import {
+            getFirestore,
+            doc,
+            setDoc,
+            onSnapshot
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'edutrack-heritage-physics-portal';
+        let db = null;
+        let auth = null;
+        let activeUnsubscribe = null;
+
+        async function initCloudServices() {
+            try {
+                if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+                    const firebaseConfig = JSON.parse(__firebase_config);
+                    const app = initializeApp(firebaseConfig);
+                    auth = getAuth(app);
+                    db = getFirestore(app);
+
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        await signInWithCustomToken(auth, __initial_auth_token);
+                    } else if (!auth.currentUser) {
+                        await signInAnonymously(auth);
+                    }
+
+                    onAuthStateChanged(auth, (user) => {
+                        if (user && typeof window.handleCloudUserAuthenticated === 'function') {
+                            window.handleCloudUserAuthenticated(user);
+                        }
+                    });
+                } else if (typeof window.updateCloudBannerState === 'function') {
+                    window.updateCloudBannerState(true);
+                }
+            } catch (err) {
+                console.warn("Firebase initialization fallback:", err);
+                if (typeof window.updateCloudBannerState === 'function') {
+                    window.updateCloudBannerState(true);
+                }
+            }
+        }
+
+        window.subscribeUserCloudWorkspace = function (accountId) {
+            if (!db || !auth || !auth.currentUser) return;
+            if (activeUnsubscribe) {
+                activeUnsubscribe();
+                activeUnsubscribe = null;
+            }
+
+            const targetUid = auth.currentUser.uid;
+            const cleanKey = (accountId || 'default').toLowerCase().replace(/[^a-z0-9_-]/g, '_');
+            const docName = `google_acct_${cleanKey}`;
+            const userDocRef = doc(db, 'artifacts', appId, 'users', targetUid, 'facultyWorkspace', docName);
+
+            activeUnsubscribe = onSnapshot(
+                userDocRef,
+                (snap) => {
+                    if (snap.exists()) {
+                        const cloudData = snap.data();
+                        if (typeof window.applyCloudWorkspacePayload === 'function') {
+                            window.applyCloudWorkspacePayload(cloudData);
+                        }
+                    } else if (typeof window.pushCurrentWorkspaceToCloud === 'function') {
+                        window.pushCurrentWorkspaceToCloud();
+                    }
+                },
+                (err) => {
+                    console.warn("Firestore snapshot listener warning:", err);
+                }
+            );
+        };
+
+        window.pushCurrentWorkspaceToCloud = async function () {
+            if (!db || !auth || !auth.currentUser) return;
+            try {
+                const targetUid = auth.currentUser.uid;
+                const accountKey = typeof window.getCurrentAccountKey === 'function' ? window.getCurrentAccountKey() : 'default';
+                const cleanKey = (accountKey || 'default').toLowerCase().replace(/[^a-z0-9_-]/g, '_');
+                const docName = `google_acct_${cleanKey}`;
+                const userDocRef = doc(db, 'artifacts', appId, 'users', targetUid, 'facultyWorkspace', docName);
+
+                const payload = window.buildCurrentWorkspacePayload();
+                await setDoc(userDocRef, payload, { merge: true });
+                window.updateCloudBannerState(true);
+            } catch (e) {
+                console.warn("Cloud sync write warning:", e);
+            }
+        };
+
+        window.triggerFirebaseGooglePopup = async function () {
+            if (auth && window.location.protocol !== 'file:' && !window.frameElement) {
+                try {
+                    const provider = new GoogleAuthProvider();
+                    provider.setCustomParameters({ prompt: 'select_account' });
+                    const result = await signInWithPopup(auth, provider);
+                    if (result && result.user) {
+                        const gUser = result.user;
+                        window.activateGoogleAuthenticatedProfile({
+                            uid: gUser.uid,
+                            name: gUser.displayName || "Dr. Alorika Chatterjee",
+                            email: gUser.email || "alorika.chatterjee@theheritage.ac.in",
+                            photoURL: gUser.photoURL || "",
+                            provider: "Google OAuth"
+                        });
+                        return;
+                    }
+                } catch (popupErr) {
+                    console.info("Opening integrated Google Account Chooser:", popupErr.code || popupErr.message);
+                }
+            }
+            window.openGoogleOAuthChooser(false);
+        };
+
+        initCloudServices();
+    </script>
+
+    <!-- ========================================== -->
+    <!-- APPLICATION JAVASCRIPT                     -->
+    <!-- ========================================== -->
+    <script>
+        // Safe storage wrapper so the app never fails even if browser iframe restricts localStorage
+        const memoryStorageFallback = {};
+        const SafeStorage = {
+            getItem(key) {
+                try {
+                    return window.localStorage.getItem(key);
+                } catch (e) {
+                    return memoryStorageFallback[key] || null;
+                }
+            },
+            setItem(key, val) {
+                try {
+                    window.localStorage.setItem(key, val);
+                } catch (e) {
+                    memoryStorageFallback[key] = val;
+                }
+            }
+        };
+
+        // --- FACULTY PROFILE & GOOGLE ACCOUNT WORKSPACE STATE ---
+        let FACULTY_PROFILE = {
+            name: "Dr. Alorika Chatterjee",
+            designation: "Dept. of Physics, The Heritage College",
+            email: "alorika.chatterjee@theheritage.ac.in",
+            photoURL: "",
+            accountKey: "alorika.chatterjee@theheritage.ac.in",
+            provider: "Google Workspace"
+        };
+
+        const DEFAULT_GOOGLE_ACCOUNTS = [
+            {
+                name: "Dr. Alorika Chatterjee",
+                email: "alorika.chatterjee@theheritage.ac.in",
+                designation: "Dept. of Physics, The Heritage College"
+            },
+            {
+                name: "Dr. Alorika Chatterjee (Personal Gmail)",
+                email: "alorika.physics@gmail.com",
+                designation: "Dept. of Physics, The Heritage College"
+            }
+        ];
+
+        window.getFacultyProfile = () => FACULTY_PROFILE;
+        let currentFirebaseUid = null;
+        let isApplyingRemoteUpdate = false;
+
+        function getCurrentAccountKey() {
+            return (FACULTY_PROFILE.accountKey || FACULTY_PROFILE.email || "default_faculty").toLowerCase().trim();
+        }
+        window.getCurrentAccountKey = getCurrentAccountKey;
+
+        // Dynamic per-account storage keys so multiple Google users on the same browser or cloud have 100% separate data
+        function getAccountStorageKeys() {
+            const safeKey = getCurrentAccountKey().replace(/[^a-z0-9]/gi, '_');
+            return {
+                ROSTERS: `edutrack_rosters_${safeKey}`,
+                DAILY_TIMINGS: `edutrack_timings_${safeKey}`,
+                ACTIVITY_LOGS: `edutrack_logs_${safeKey}`,
+                PROFILE: `edutrack_profile_${safeKey}`
+            };
+        }
+
+        function getSavedGoogleAccountsDirectory() {
+            try {
+                const raw = SafeStorage.getItem('edutrack_google_accounts_dir');
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+                }
+            } catch (e) {}
+            return DEFAULT_GOOGLE_ACCOUNTS;
+        }
+
+        function registerAccountInDirectory(profile) {
+            const list = getSavedGoogleAccountsDirectory();
+            const cleanEmail = (profile.email || '').toLowerCase().trim();
+            const existingIdx = list.findIndex(a => a.email.toLowerCase() === cleanEmail);
+            const entry = {
+                name: profile.name,
+                email: cleanEmail,
+                designation: profile.designation || "Dept. of Physics, The Heritage College"
+            };
+            if (existingIdx >= 0) {
+                list[existingIdx] = entry;
+            } else {
+                list.unshift(entry);
+            }
+            SafeStorage.setItem('edutrack_google_accounts_dir', JSON.stringify(list));
+        }
+
+        let semesterRosters = {};
+        let dailyTimings = {}; // { 'YYYY-MM-DD': { arrival: '09:15', departure: '16:45' } }
+        let activityLogs = []; // Array of log objects
+        let currentActivityType = 'Lecture Class';
+        let currentSessionAttendance = {}; // { rollNo: boolean (true = Present, false = Absent) }
+        let activeModalLog = null;
+        let activeModalFilter = 'ALL';
+
+        // --- DEFAULT REALISTIC B.SC. PHYSICS STUDENT ROSTERS PER SEMESTER ---
+        function getDefaultRosters() {
+            return {
+                "Sem 1": [
+                    { roll: "PHS/26/101", name: "Aarav Mukherjee" },
+                    { roll: "PHS/26/102", name: "Aditi Roy" },
+                    { roll: "PHS/26/103", name: "Aniket Banerjee" },
+                    { roll: "PHS/26/104", name: "Debolina Ghosh" },
+                    { roll: "PHS/26/105", name: "Ishaan Chakraborty" },
+                    { roll: "PHS/26/106", name: "Kritika Sen" },
+                    { roll: "PHS/26/107", name: "Mayank Agarwal" },
+                    { roll: "PHS/26/108", name: "Nandini Das" },
+                    { roll: "PHS/26/109", name: "Pratik Mondal" },
+                    { roll: "PHS/26/110", name: "Riya Saha" },
+                    { roll: "PHS/26/111", name: "Sagnik Bose" },
+                    { roll: "PHS/26/112", name: "Tanvi Dutta" }
+                ],
+                "Sem 2": [
+                    { roll: "PHS/25/201", name: "Abhishek Verma" },
+                    { roll: "PHS/25/202", name: "Ananya Chatterjee" },
+                    { roll: "PHS/25/203", name: "Arjun Sengupta" },
+                    { roll: "PHS/25/204", name: "Bishal Karmakar" },
+                    { roll: "PHS/25/205", name: "Diya Majumdar" },
+                    { roll: "PHS/25/206", name: "Gaurav Sharma" },
+                    { roll: "PHS/25/207", name: "Koyel Mitra" },
+                    { roll: "PHS/25/208", name: "Nikhil Paul" },
+                    { roll: "PHS/25/209", name: "Poulomi Sarkar" },
+                    { roll: "PHS/25/210", name: "Rohan Guha" }
+                ],
+                "Sem 3": [
+                    { roll: "PHS/25/301", name: "Aakash Bhattacharya" },
+                    { roll: "PHS/25/302", name: "Ankita Ganguly" },
+                    { roll: "PHS/25/303", name: "Arnab Goswami" },
+                    { roll: "PHS/25/304", name: "Bipasha Halder" },
+                    { roll: "PHS/25/305", name: "Chirantan Dey" },
+                    { roll: "PHS/25/306", name: "Debjit Kundu" },
+                    { roll: "PHS/25/307", name: "Gargi Lahiri" },
+                    { roll: "PHS/25/308", name: "Himanshu Shaw" },
+                    { roll: "PHS/25/309", name: "Juhi Biswas" },
+                    { roll: "PHS/25/310", name: "Kaustav Nandi" },
+                    { roll: "PHS/25/311", name: "Madhurima Roy" },
+                    { roll: "PHS/25/312", name: "Neeladri Sinha" },
+                    { roll: "PHS/25/313", name: "Payel Pal" },
+                    { roll: "PHS/25/314", name: "Ritwick Chowdhury" }
+                ],
+                "Sem 4": [
+                    { roll: "PHS/24/401", name: "Aditya Narayan" },
+                    { roll: "PHS/24/402", name: "Amrita Samanta" },
+                    { roll: "PHS/24/403", name: "Avijit Bera" },
+                    { roll: "PHS/24/404", name: "Bidisha Kar" },
+                    { roll: "PHS/24/405", name: "Deepayan Jana" },
+                    { roll: "PHS/24/406", name: "Indrani Hazra" },
+                    { roll: "PHS/24/407", name: "Kunal Singh" },
+                    { roll: "PHS/24/408", name: "Moumita Maity" },
+                    { roll: "PHS/24/409", name: "Partha Sarathi" },
+                    { roll: "PHS/24/410", name: "Shreya Ghoshal" }
+                ],
+                "Sem 5": [
+                    { roll: "PHS/24/501", name: "Aritra Bhowmik" },
+                    { roll: "PHS/24/502", name: "Bipasha Basu" },
+                    { roll: "PHS/24/503", name: "Devjyoti Mallick" },
+                    { roll: "PHS/24/504", name: "Esha Gupta" },
+                    { roll: "PHS/24/505", name: "Mainak Bagchi" },
+                    { roll: "PHS/24/506", name: "Pallabi Patra" },
+                    { roll: "PHS/24/507", name: "Rajdeep Sikdar" },
+                    { roll: "PHS/24/508", name: "Sohini Moitra" },
+                    { roll: "PHS/24/509", name: "Sourav Dasgupta" },
+                    { roll: "PHS/24/510", name: "Subhamoy Panja" },
+                    { roll: "PHS/24/511", name: "Trisha Konar" },
+                    { roll: "PHS/24/512", name: "Vikramaditya Ray" }
+                ],
+                "Sem 6": [
+                    { roll: "PHS/23/601", name: "Aniruddha Roy" },
+                    { roll: "PHS/23/602", name: "Barnali Mandal" },
+                    { roll: "PHS/23/603", name: "Joydeep Dutta" },
+                    { roll: "PHS/23/604", name: "Monami Ghosh" },
+                    { roll: "PHS/23/605", name: "Prasenjit Kumar" },
+                    { roll: "PHS/23/606", name: "Rimpa Chakraborty" },
+                    { roll: "PHS/23/607", name: "Sabyasachi Sen" },
+                    { roll: "PHS/23/608", name: "Tania Parveen" }
+                ],
+                "Sem 7": [
+                    { roll: "PHS/23/701", name: "Arkajyoti Saha" },
+                    { roll: "PHS/23/702", name: "Chandreyee Paul" },
+                    { roll: "PHS/23/703", name: "Dipankar Roy" },
+                    { roll: "PHS/23/704", name: "Lopamudra Mitra" },
+                    { roll: "PHS/23/705", name: "Nirmalya Seal" },
+                    { roll: "PHS/23/706", name: "Priyanka Sardar" },
+                    { roll: "PHS/23/707", name: "Rupam Islam" },
+                    { roll: "PHS/23/708", name: "Sayani Gupta" },
+                    { roll: "PHS/23/709", name: "Suman Kalyan" },
+                    { roll: "PHS/23/710", name: "Ushasi Ray" }
+                ],
+                "Sem 8": [
+                    { roll: "PHS/22/801", name: "Abir Chatterjee" },
+                    { roll: "PHS/22/802", name: "Debleena Sen" },
+                    { roll: "PHS/22/803", name: "Parambrata Kar" },
+                    { roll: "PHS/22/804", name: "Paoli Dam" },
+                    { roll: "PHS/22/805", name: "Raima Sen" },
+                    { roll: "PHS/22/806", name: "Riddhi Sen" },
+                    { roll: "PHS/22/807", name: "Soham Majumdar" },
+                    { roll: "PHS/22/808", name: "Swastika Mukherjee" }
+                ]
+            };
+        }
+
+        // Helper to get YYYY-MM-DD relative to today
+        function getRelativeDateStr(offsetDays = 0) {
+            const d = new Date();
+            d.setDate(d.getDate() + offsetDays);
+            const yyyy = d.getFullYear();
+            const mm = String(d.getMonth() + 1).padStart(2, '0');
+            const dd = String(d.getDate()).padStart(2, '0');
+            return `${yyyy}-${mm}-${dd}`;
+        }
+
+        // Convert "HH:MM" into minutes since 00:00
+        function timeToMinutes(timeStr) {
+            if (!timeStr || !timeStr.includes(':')) return -1;
+            const [hh, mm] = timeStr.split(':').map(Number);
+            return hh * 60 + mm;
+        }
+
+        // Convert minutes since 00:00 back to "HH:MM"
+        function minutesToTime(totalMins) {
+            const clamped = Math.max(0, Math.min(23 * 60 + 59, totalMins));
+            const hh = String(Math.floor(clamped / 60)).padStart(2, '0');
+            const mm = String(clamped % 60).padStart(2, '0');
+            return `${hh}:${mm}`;
+        }
+
+        // Pre-populate Physics sample data for Dr. Alorika Chatterjee
+        function seedSampleData() {
+            const rosters = getDefaultRosters();
+
+            const dToday = getRelativeDateStr(0);
+            const dYesterday = getRelativeDateStr(-1);
+            const dTwoDaysAgo = getRelativeDateStr(-2);
+            const dThreeDaysAgo = getRelativeDateStr(-3);
+
+            const timings = {
+                [dThreeDaysAgo]: { arrival: "09:10", departure: "17:05" },
+                [dTwoDaysAgo]:   { arrival: "09:00", departure: "16:40" },
+                [dYesterday]:    { arrival: "08:50", departure: "17:15" },
+                [dToday]:        { arrival: "09:15", departure: "16:45" }
+            };
+
+            const buildStudentSnapshot = (sem, absentIndices = []) => {
+                const list = rosters[sem] || [];
+                return list.map((s, idx) => ({
+                    roll: s.roll,
+                    name: s.name,
+                    status: absentIndices.includes(idx) ? 'A' : 'P'
+                }));
+            };
+
+            const logs = [
+                {
+                    id: "LOG-1001",
+                    date: dThreeDaysAgo,
+                    arrivalTime: "09:10",
+                    departureTime: "17:05",
+                    activityType: "Lecture Class",
+                    semester: "Sem 3",
+                    slotStart: "10:00",
+                    slotEnd: "11:00",
+                    subjectOrExam: "Mathematical Physics II (PHSA-CC5)",
+                    roomOrHall: "Physics LH-302",
+                    topicOrRole: "Fourier Series & Partial Differential Equations",
+                    remarks: "Solved boundary value problems in class",
+                    totalStudents: 14,
+                    presentCount: 12,
+                    absentCount: 2,
+                    attendanceList: buildStudentSnapshot("Sem 3", [3, 9])
+                },
+                {
+                    id: "LOG-1002",
+                    date: dThreeDaysAgo,
+                    arrivalTime: "09:10",
+                    departureTime: "17:05",
+                    activityType: "Lab Session",
+                    semester: "Sem 5",
+                    slotStart: "14:00",
+                    slotEnd: "16:30",
+                    subjectOrRole: "Optics & Laser Lab",
+                    subjectOrExam: "Advanced Optics & Spectroscopy Lab (PHSA-CC11P)",
+                    roomOrHall: "Dark Room Optics Lab-1",
+                    topicOrRole: "Michelson Interferometer & He-Ne Laser Wavelength",
+                    remarks: "All groups recorded fringe shift readings accurately",
+                    totalStudents: 12,
+                    presentCount: 11,
+                    absentCount: 1,
+                    attendanceList: buildStudentSnapshot("Sem 5", [6])
+                },
+                {
+                    id: "LOG-1003",
+                    date: dTwoDaysAgo,
+                    arrivalTime: "09:00",
+                    departureTime: "16:40",
+                    activityType: "Exam Duty",
+                    semester: "Sem 5",
+                    slotStart: "10:30",
+                    slotEnd: "13:30",
+                    subjectOrExam: "CU B.Sc. Internal Assessment — Quantum Mechanics (PHSA-CC11)",
+                    roomOrHall: "THC Block-B Hall 201",
+                    topicOrRole: "Invigilator (Morning Shift)",
+                    remarks: "Smooth examination conduct; 12 scripts collected & verified",
+                    totalStudents: 12,
+                    presentCount: 12,
+                    absentCount: 0,
+                    attendanceList: buildStudentSnapshot("Sem 5", [])
+                },
+                {
+                    id: "LOG-1004",
+                    date: dYesterday,
+                    arrivalTime: "08:50",
+                    departureTime: "17:15",
+                    activityType: "Lecture Class",
+                    semester: "Sem 6",
+                    slotStart: "11:00",
+                    slotEnd: "12:00",
+                    subjectOrExam: "Solid State Physics (PHSA-CC13)",
+                    roomOrHall: "Physics Seminar Hall",
+                    topicOrRole: "Kronig-Penney Model & Band Theory of Solids",
+                    remarks: "Derivations and Brillouin zone diagrams discussed",
+                    totalStudents: 8,
+                    presentCount: 7,
+                    absentCount: 1,
+                    attendanceList: buildStudentSnapshot("Sem 6", [4])
+                },
+                {
+                    id: "LOG-1005",
+                    date: dYesterday,
+                    arrivalTime: "08:50",
+                    departureTime: "17:15",
+                    activityType: "Exam Duty",
+                    semester: "Sem 3",
+                    slotStart: "14:00",
+                    slotEnd: "16:00",
+                    subjectOrExam: "Practical Viva & Lab Assessment — Analog Electronics (PHSA-CC7P)",
+                    roomOrHall: "Electronics & Instrumentation Lab",
+                    topicOrRole: "Practical Examiner (Physics Lab)",
+                    remarks: "OP-AMP and Zener diode practical viva completed",
+                    totalStudents: 14,
+                    presentCount: 13,
+                    absentCount: 1,
+                    attendanceList: buildStudentSnapshot("Sem 3", [11])
+                },
+                {
+                    id: "LOG-1006",
+                    date: dToday,
+                    arrivalTime: "09:15",
+                    departureTime: "16:45",
+                    activityType: "Lecture Class",
+                    semester: "Sem 1",
+                    slotStart: "09:45",
+                    slotEnd: "10:45",
+                    subjectOrExam: "Classical Mechanics & Wave Motion (PHSA-CC1)",
+                    roomOrHall: "Physics LH-104",
+                    topicOrRole: "Central Force Motion & Kepler's Laws",
+                    remarks: "First period honours lecture",
+                    totalStudents: 12,
+                    presentCount: 11,
+                    absentCount: 1,
+                    attendanceList: buildStudentSnapshot("Sem 1", [7])
+                }
+            ];
+
+            semesterRosters = rosters;
+            dailyTimings = timings;
+            activityLogs = logs;
+            saveAllToStorage();
+        }
+
+        function loadStateFromStorage() {
+            try {
+                const activeAcc = SafeStorage.getItem('edutrack_active_account_profile');
+                if (activeAcc) {
+                    const parsed = JSON.parse(activeAcc);
+                    FACULTY_PROFILE = { ...FACULTY_PROFILE, ...parsed };
+                }
+
+                const keys = getAccountStorageKeys();
+                const storedRosters = SafeStorage.getItem(keys.ROSTERS);
+                const storedTimings = SafeStorage.getItem(keys.DAILY_TIMINGS);
+                const storedLogs = SafeStorage.getItem(keys.ACTIVITY_LOGS);
+
+                if (storedRosters && storedTimings && storedLogs) {
+                    semesterRosters = JSON.parse(storedRosters);
+                    dailyTimings = JSON.parse(storedTimings);
+                    activityLogs = JSON.parse(storedLogs);
+                } else {
+                    // If this is Dr. Alorika Chatterjee's primary institutional account, seed the Physics logs;
+                    // if it's a secondary or new Google account, initialize clean rosters & empty logs so each account is distinct
+                    if (getCurrentAccountKey() === 'alorika.chatterjee@theheritage.ac.in') {
+                        seedSampleData();
+                    } else {
+                        semesterRosters = getDefaultRosters();
+                        dailyTimings = { [getRelativeDateStr(0)]: { arrival: "09:15", departure: "16:45" } };
+                        activityLogs = [];
+                        saveAllToStorage();
+                    }
+                }
+                registerAccountInDirectory(FACULTY_PROFILE);
+                refreshFacultyProfileUI();
+            } catch (e) {
+                console.error("Error loading storage, seeding defaults:", e);
+                seedSampleData();
+            }
+        }
+
+        function saveAllToStorage() {
+            try {
+                const keys = getAccountStorageKeys();
+                SafeStorage.setItem('edutrack_active_account_profile', JSON.stringify(FACULTY_PROFILE));
+                SafeStorage.setItem(keys.PROFILE, JSON.stringify(FACULTY_PROFILE));
+                SafeStorage.setItem(keys.ROSTERS, JSON.stringify(semesterRosters));
+                SafeStorage.setItem(keys.DAILY_TIMINGS, JSON.stringify(dailyTimings));
+                SafeStorage.setItem(keys.ACTIVITY_LOGS, JSON.stringify(activityLogs));
+                updateTotalBadge();
+
+                if (!isApplyingRemoteUpdate && typeof window.pushCurrentWorkspaceToCloud === 'function') {
+                    window.pushCurrentWorkspaceToCloud();
+                }
+            } catch (e) {
+                console.error("Error saving to storage:", e);
+            }
+        }
+
+        // --- CLOUD & GOOGLE AUTHENTICATION HANDLERS ---
+        window.buildCurrentWorkspacePayload = function () {
+            return {
+                profile: FACULTY_PROFILE,
+                rostersJson: JSON.stringify(semesterRosters),
+                timingsJson: JSON.stringify(dailyTimings),
+                logsJson: JSON.stringify(activityLogs),
+                updatedAt: new Date().toISOString()
+            };
+        };
+
+        window.applyCloudWorkspacePayload = function (cloudData) {
+            if (!cloudData) return;
+            try {
+                isApplyingRemoteUpdate = true;
+                if (cloudData.profile) {
+                    FACULTY_PROFILE = { ...FACULTY_PROFILE, ...cloudData.profile };
+                }
+                if (cloudData.rostersJson) {
+                    semesterRosters = JSON.parse(cloudData.rostersJson);
+                }
+                if (cloudData.timingsJson) {
+                    dailyTimings = JSON.parse(cloudData.timingsJson);
+                }
+                if (cloudData.logsJson) {
+                    activityLogs = JSON.parse(cloudData.logsJson);
+                }
+
+                const keys = getAccountStorageKeys();
+                SafeStorage.setItem(keys.ROSTERS, JSON.stringify(semesterRosters));
+                SafeStorage.setItem(keys.DAILY_TIMINGS, JSON.stringify(dailyTimings));
+                SafeStorage.setItem(keys.ACTIVITY_LOGS, JSON.stringify(activityLogs));
+
+                refreshFacultyProfileUI();
+                handleDateChange();
+                handleSemesterChange();
+                renderRecentLogsTable();
+                renderReportView();
+                renderRosterManager();
+                updateTotalBadge();
+                checkLiveSlotConflict();
+                updateCloudBannerState(true);
+            } catch (err) {
+                console.error("Error applying cloud payload:", err);
+            } finally {
+                isApplyingRemoteUpdate = false;
+            }
+        };
+
+        window.handleCloudUserAuthenticated = function (user) {
+            currentFirebaseUid = user.uid;
+            if (!user.isAnonymous && user.email) {
+                FACULTY_PROFILE.email = user.email;
+                FACULTY_PROFILE.accountKey = user.email;
+                if (user.displayName) FACULTY_PROFILE.name = user.displayName;
+                if (user.photoURL) FACULTY_PROFILE.photoURL = user.photoURL;
+                FACULTY_PROFILE.provider = "Google Verified";
+            }
+            refreshFacultyProfileUI();
+            if (typeof window.subscribeUserCloudWorkspace === 'function') {
+                window.subscribeUserCloudWorkspace(getCurrentAccountKey());
+            }
+            updateCloudBannerState(true);
+        };
+
+        window.updateCloudBannerState = function (isCloudConnected, customMsg) {
+            const textEl = document.getElementById('subbanner-account-text');
+            const uidEl = document.getElementById('subbanner-uid-pill');
+            const dotEl = document.getElementById('subbanner-status-dot');
+
+            if (textEl) {
+                textEl.innerHTML = customMsg || `Signed in as <strong>${FACULTY_PROFILE.name}</strong> (${FACULTY_PROFILE.email}) — Personal Cloud Storage Synced`;
+            }
+            if (uidEl) {
+                const uidLabel = currentFirebaseUid ? `Account ID: ${currentFirebaseUid}` : `Workspace: ${getCurrentAccountKey()}`;
+                uidEl.textContent = uidLabel;
+            }
+            if (dotEl) {
+                dotEl.className = isCloudConnected
+                    ? "w-2 h-2 rounded-full bg-emerald-400"
+                    : "w-2 h-2 rounded-full bg-amber-400";
+            }
+        };
+
+        function getInitials(nameStr) {
+            const parts = (nameStr || "Faculty").replace(/^Dr\.\s*/i, '').trim().split(/\s+/);
+            if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+            return (parts[0] || "FA").slice(0, 2).toUpperCase();
+        }
+
+        function refreshFacultyProfileUI() {
+            const initials = getInitials(FACULTY_PROFILE.name);
+
+            const nameEl = document.getElementById('faculty-name-display');
+            const deptEl = document.getElementById('faculty-dept-display');
+            const bannerSub = document.getElementById('banner-faculty-subtitle');
+            const headerBtnText = document.getElementById('header-google-btn-text');
+            const mobileText = document.getElementById('mobile-auth-status-text');
+
+            if (nameEl) nameEl.textContent = FACULTY_PROFILE.name;
+            if (deptEl) deptEl.textContent = FACULTY_PROFILE.designation;
+            if (bannerSub) bannerSub.textContent = `${FACULTY_PROFILE.name} • ${FACULTY_PROFILE.designation}`;
+            if (headerBtnText) headerBtnText.textContent = FACULTY_PROFILE.email.split('@')[0];
+            if (mobileText) mobileText.textContent = initials;
+
+            // Update avatars
+            ['header-user-avatar', 'modal-user-avatar'].forEach(id => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                if (FACULTY_PROFILE.photoURL) {
+                    el.innerHTML = `<img src="${FACULTY_PROFILE.photoURL}" alt="${initials}" class="w-full h-full object-cover" onerror="this.parentElement.textContent='${initials}'">`;
+                } else {
+                    el.textContent = initials;
+                }
+            });
+
+            // Modal fields
+            const mName = document.getElementById('modal-account-name');
+            const mEmail = document.getElementById('modal-account-email');
+            const mUid = document.getElementById('modal-account-uid');
+            if (mName) mName.textContent = FACULTY_PROFILE.name;
+            if (mEmail) mEmail.textContent = FACULTY_PROFILE.email;
+            if (mUid) mUid.textContent = `Cloud UID: ${currentFirebaseUid || 'Local'} • Workspace: ${getCurrentAccountKey()}`;
+
+            const editName = document.getElementById('profile-edit-name');
+            const editEmail = document.getElementById('profile-edit-email');
+            const editDept = document.getElementById('profile-edit-dept');
+            if (editName) editName.value = FACULTY_PROFILE.name;
+            if (editEmail) editEmail.value = FACULTY_PROFILE.email;
+            if (editDept) editDept.value = FACULTY_PROFILE.designation;
+
+            updateCloudBannerState(true);
+        }
+
+        function openAuthAccountModal() {
+            refreshFacultyProfileUI();
+            document.getElementById('auth-account-modal').classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function closeAuthAccountModal() {
+            document.getElementById('auth-account-modal').classList.add('hidden');
+        }
+
+        function toggleQuickGoogleEmailBox(forceShow) {
+            const box = document.getElementById('quick-google-email-box');
+            if (!box) return;
+            if (forceShow === true) {
+                box.classList.remove('hidden');
+            } else {
+                box.classList.toggle('hidden');
+            }
+            const input = document.getElementById('custom-google-email-input');
+            if (input && !box.classList.contains('hidden')) input.focus();
+        }
+
+        function signInWithGoogleAccount() {
+            closeAuthAccountModal();
+            if (typeof window.triggerFirebaseGooglePopup === 'function') {
+                window.triggerFirebaseGooglePopup();
+            } else {
+                openGoogleOAuthChooser(false);
+            }
+        }
+
+        // --- INTERACTIVE GOOGLE OAUTH ACCOUNT CHOOSER FUNCTIONS ---
+        window.openGoogleOAuthChooser = function (requireSignIn = false) {
+            const modal = document.getElementById('google-oauth-chooser-modal');
+            const closeBtn = document.getElementById('google-chooser-close-btn');
+            const heading = document.getElementById('google-chooser-heading');
+            const subheading = document.getElementById('google-chooser-subheading');
+
+            if (requireSignIn) {
+                closeBtn.classList.add('hidden');
+                heading.textContent = "Signed Out — Sign in with Google";
+                subheading.innerHTML = "Select your Google Account to load your personal faculty logs & attendance data";
+            } else {
+                closeBtn.classList.remove('hidden');
+                heading.textContent = "Sign in with Google";
+                subheading.innerHTML = 'Choose an account to continue to <span class="font-semibold text-brand-600">EduTrack Pro Faculty Portal</span>';
+            }
+
+            renderGoogleSavedAccountsList();
+            backToGoogleChooserStep();
+            modal.classList.remove('hidden');
+            lucide.createIcons();
+        };
+
+        function closeGoogleOAuthChooser() {
+            document.getElementById('google-oauth-chooser-modal').classList.add('hidden');
+        }
+
+        function renderGoogleSavedAccountsList() {
+            const container = document.getElementById('google-saved-accounts-list');
+            const accounts = getSavedGoogleAccountsDirectory();
+            const currentEmail = getCurrentAccountKey();
+
+            container.innerHTML = accounts.map((acc, idx) => {
+                const isCurrent = acc.email.toLowerCase() === currentEmail;
+                const initials = getInitials(acc.name);
+                return `
+                    <button type="button" onclick="selectGoogleAccountByIndex(${idx})"
+                        class="w-full flex items-center justify-between gap-3 p-3 rounded-2xl border ${isCurrent ? 'border-brand-500 bg-brand-50/50' : 'border-slate-200 hover:bg-slate-50'} text-left transition group">
+                        <div class="flex items-center gap-3 min-w-0">
+                            <div class="w-10 h-10 rounded-full bg-gradient-to-br from-brand-600 to-indigo-700 text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-2xs">
+                                ${initials}
+                            </div>
+                            <div class="min-w-0">
+                                <div class="flex items-center gap-1.5">
+                                    <p class="text-xs sm:text-sm font-bold text-slate-900 truncate group-hover:text-brand-600">${acc.name}</p>
+                                    ${isCurrent ? '<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">Active</span>' : ''}
+                                </div>
+                                <p class="text-xs text-slate-500 truncate">${acc.email}</p>
+                                <p class="text-[10px] text-slate-400 truncate">${acc.designation || ''}</p>
+                            </div>
+                        </div>
+                        <i data-lucide="chevron-right" class="w-4 h-4 text-slate-400 group-hover:text-brand-600 shrink-0"></i>
+                    </button>
+                `;
+            }).join('');
+            lucide.createIcons();
+        }
+
+        function selectGoogleAccountByIndex(idx) {
+            const accounts = getSavedGoogleAccountsDirectory();
+            const chosen = accounts[idx];
+            if (!chosen) return;
+            window.activateGoogleAuthenticatedProfile({
+                name: chosen.name,
+                email: chosen.email,
+                designation: chosen.designation,
+                photoURL: "",
+                provider: "Google Verified"
+            });
+            closeGoogleOAuthChooser();
+        }
+
+        function showGoogleCustomLoginStep() {
+            document.getElementById('google-step-chooser').classList.add('hidden');
+            document.getElementById('google-step-form').classList.remove('hidden');
+            document.getElementById('oauth-input-email').value = '';
+            document.getElementById('oauth-input-name').value = '';
+            document.getElementById('oauth-input-email').focus();
+            lucide.createIcons();
+        }
+
+        function backToGoogleChooserStep() {
+            document.getElementById('google-step-form').classList.add('hidden');
+            document.getElementById('google-step-chooser').classList.remove('hidden');
+        }
+
+        function submitGoogleSignInForm(e) {
+            e.preventDefault();
+            const email = document.getElementById('oauth-input-email').value.trim().toLowerCase();
+            const name = document.getElementById('oauth-input-name').value.trim();
+            const dept = document.getElementById('oauth-input-dept').value.trim() || "Dept. of Physics, The Heritage College";
+
+            if (!email || !email.includes('@') || !name) {
+                showToast("Please enter a valid Google Email and Faculty Name.", "error");
+                return;
+            }
+
+            window.activateGoogleAuthenticatedProfile({
+                name,
+                email,
+                designation: dept,
+                photoURL: "",
+                provider: "Google Verified"
+            });
+            closeGoogleOAuthChooser();
+        }
+
+        window.activateGoogleAuthenticatedProfile = function (gProfile) {
+            const emailKey = (gProfile.email || "user@gmail.com").toLowerCase().trim();
+
+            // Check if this Google user already has saved profile details
+            const existingProfileRaw = SafeStorage.getItem(`edutrack_profile_${emailKey.replace(/[^a-z0-9]/gi, '_')}`);
+            if (existingProfileRaw) {
+                const savedP = JSON.parse(existingProfileRaw);
+                FACULTY_PROFILE = {
+                    ...savedP,
+                    name: gProfile.name || savedP.name,
+                    designation: gProfile.designation || savedP.designation,
+                    accountKey: emailKey,
+                    email: emailKey
+                };
+            } else {
+                const defaultName = gProfile.name || emailKey.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                FACULTY_PROFILE = {
+                    name: defaultName,
+                    designation: gProfile.designation || (emailKey.includes('alorika') ? "Dept. of Physics, The Heritage College" : "Faculty Member, The Heritage College"),
+                    email: emailKey,
+                    photoURL: gProfile.photoURL || "",
+                    accountKey: emailKey,
+                    provider: gProfile.provider || "Google Account"
+                };
+            }
+
+            registerAccountInDirectory(FACULTY_PROFILE);
+            SafeStorage.setItem('edutrack_active_account_profile', JSON.stringify(FACULTY_PROFILE));
+            loadStateFromStorage();
+
+            if (typeof window.subscribeUserCloudWorkspace === 'function') {
+                window.subscribeUserCloudWorkspace(getCurrentAccountKey());
+            }
+
+            initDefaultDates();
+            handleSemesterChange();
+            renderRecentLogsTable();
+            renderReportView();
+            renderRosterManager();
+            refreshFacultyProfileUI();
+            closeAuthAccountModal();
+            showToast(`Signed in with Google as ${FACULTY_PROFILE.name} (${FACULTY_PROFILE.email})`, "success");
+        };
+
+        function switchWorkspaceByGoogleEmail() {
+            const emailInput = document.getElementById('custom-google-email-input');
+            const emailVal = (emailInput.value || '').trim().toLowerCase();
+            if (!emailVal || !emailVal.includes('@')) {
+                showToast("Please enter a valid Google email address (e.g. name@gmail.com).", "error");
+                return;
+            }
+
+            const inferredName = emailVal.includes('alorika')
+                ? "Dr. Alorika Chatterjee"
+                : "Prof. " + emailVal.split('@')[0].replace(/[._-]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+
+            window.activateGoogleAuthenticatedProfile({
+                name: inferredName,
+                email: emailVal,
+                photoURL: "",
+                provider: "Google Workspace"
+            });
+            emailInput.value = '';
+        }
+
+        function saveFacultyProfileChanges() {
+            const newName = document.getElementById('profile-edit-name').value.trim();
+            const newEmail = document.getElementById('profile-edit-email').value.trim().toLowerCase();
+            const newDept = document.getElementById('profile-edit-dept').value.trim();
+
+            if (!newName || !newEmail) {
+                showToast("Faculty Name and Email are required.", "error");
+                return;
+            }
+
+            const emailChanged = newEmail !== getCurrentAccountKey();
+            FACULTY_PROFILE.name = newName;
+            FACULTY_PROFILE.email = newEmail;
+            FACULTY_PROFILE.designation = newDept || "Dept. of Physics, The Heritage College";
+            FACULTY_PROFILE.accountKey = newEmail;
+
+            registerAccountInDirectory(FACULTY_PROFILE);
+            SafeStorage.setItem('edutrack_active_account_profile', JSON.stringify(FACULTY_PROFILE));
+
+            if (emailChanged) {
+                loadStateFromStorage();
+                if (typeof window.subscribeUserCloudWorkspace === 'function') {
+                    window.subscribeUserCloudWorkspace(getCurrentAccountKey());
+                }
+            }
+
+            saveAllToStorage();
+            refreshFacultyProfileUI();
+            renderRecentLogsTable();
+            renderReportView();
+            closeAuthAccountModal();
+            showToast(`Profile & Cloud Account updated for ${FACULTY_PROFILE.name}!`, "success");
+        }
+
+        function signOutCurrentAccount() {
+            closeAuthAccountModal();
+            openGoogleOAuthChooser(true);
+            showToast("Signed out. Please choose or add a Google Account to continue.", "info");
+        }
+
+        function resetDemoData() {
+            seedSampleData();
+            initDefaultDates();
+            handleSemesterChange();
+            renderRecentLogsTable();
+            renderReportView();
+            renderRosterManager();
+            showToast("Sample demo data restored across the last 4 days!", "info");
+        }
+
+        // --- TAB NAVIGATION ---
+        function switchTab(tabId) {
+            ['entry', 'reports', 'roster'].forEach(id => {
+                const sec = document.getElementById(`tab-${id}`);
+                const btn = document.getElementById(`tab-btn-${id}`);
+                if (id === tabId) {
+                    sec.classList.remove('hidden');
+                    btn.className = "tab-btn flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all whitespace-nowrap bg-white text-brand-600 shadow-sm";
+                } else {
+                    sec.classList.add('hidden');
+                    btn.className = "tab-btn flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all whitespace-nowrap text-slate-600 hover:text-slate-900";
+                }
+            });
+
+            if (tabId === 'reports') {
+                renderReportView();
+            } else if (tabId === 'roster') {
+                renderRosterManager();
+            }
+            lucide.createIcons();
+        }
+
+        // --- DAILY ARRIVAL & DEPARTURE TIMING LOGIC ---
+        function initDefaultDates() {
+            const today = getRelativeDateStr(0);
+            const threeDaysAgo = getRelativeDateStr(-3);
+
+            document.getElementById('log-date').value = today;
+            document.getElementById('filter-from-date').value = threeDaysAgo;
+            document.getElementById('filter-to-date').value = today;
+
+            handleDateChange();
+        }
+
+        function handleDateChange() {
+            const dateVal = document.getElementById('log-date').value;
+            const saved = dailyTimings[dateVal];
+            if (saved) {
+                document.getElementById('arrival-time').value = saved.arrival || "09:15";
+                document.getElementById('departure-time').value = saved.departure || "16:45";
+            } else {
+                document.getElementById('arrival-time').value = "09:15";
+                document.getElementById('departure-time').value = "16:45";
+            }
+            updateCampusDuration();
+            checkLiveSlotConflict();
+        }
+
+        function punchNow(type) {
+            const now = new Date();
+            const hh = String(now.getHours()).padStart(2, '0');
+            const mm = String(now.getMinutes()).padStart(2, '0');
+            const timeStr = `${hh}:${mm}`;
+
+            if (type === 'arrival') {
+                document.getElementById('arrival-time').value = timeStr;
+                showToast(`Arrival time punched at ${timeStr}`, 'success');
+            } else {
+                document.getElementById('departure-time').value = timeStr;
+                showToast(`Departure time punched at ${timeStr}`, 'success');
+            }
+            updateCampusDuration();
+        }
+
+        function calculateDurationMinutes(startStr, endStr) {
+            if (!startStr || !endStr) return 0;
+            const [sh, sm] = startStr.split(':').map(Number);
+            const [eh, em] = endStr.split(':').map(Number);
+            const diff = (eh * 60 + em) - (sh * 60 + sm);
+            return diff > 0 ? diff : 0;
+        }
+
+        function formatMinutesToHrs(mins) {
+            if (mins <= 0) return "0h 0m";
+            const h = Math.floor(mins / 60);
+            const m = mins % 60;
+            return `${h}h ${m}m`;
+        }
+
+        function updateCampusDuration() {
+            const arr = document.getElementById('arrival-time').value;
+            const dep = document.getElementById('departure-time').value;
+            const mins = calculateDurationMinutes(arr, dep);
+            const textEl = document.getElementById('campus-hours-text');
+            if (mins > 0) {
+                textEl.textContent = `${formatMinutesToHrs(mins)} on campus (${arr} - ${dep})`;
+            } else {
+                textEl.textContent = `Invalid time range (Departure must be after Arrival)`;
+            }
+            checkLiveSlotConflict();
+        }
+
+        function saveDailyTimingOnly() {
+            const dateVal = document.getElementById('log-date').value;
+            const arr = document.getElementById('arrival-time').value;
+            const dep = document.getElementById('departure-time').value;
+
+            if (!dateVal) {
+                showToast("Please select a valid date first.", "error");
+                return;
+            }
+
+            if (timeToMinutes(dep) <= timeToMinutes(arr)) {
+                openConflictModal({
+                    type: "INVALID_CAMPUS_TIME",
+                    date: dateVal,
+                    newStart: arr,
+                    newEnd: dep
+                });
+                return;
+            }
+
+            dailyTimings[dateVal] = { arrival: arr, departure: dep };
+
+            // Also update any existing activity logs on that date so arrival/departure stay consistent
+            let updatedCount = 0;
+            activityLogs.forEach(log => {
+                if (log.date === dateVal) {
+                    log.arrivalTime = arr;
+                    log.departureTime = dep;
+                    updatedCount++;
+                }
+            });
+
+            saveAllToStorage();
+            renderRecentLogsTable();
+            checkLiveSlotConflict();
+            showToast(`Campus timing (${arr} - ${dep}) saved for ${dateVal}${updatedCount ? ` & synced across ${updatedCount} log(s)` : ''}.`, "success");
+        }
+
+        // --- STRICT DATE & TIME OVERLAP VALIDATION ENGINE ---
+        function validateSessionTimeSlot(dateVal, startStr, endStr, arrivalStr, departureStr) {
+            const newStart = timeToMinutes(startStr);
+            const newEnd = timeToMinutes(endStr);
+            const arrMins = timeToMinutes(arrivalStr);
+            const depMins = timeToMinutes(departureStr);
+
+            if (arrMins >= 0 && depMins >= 0 && depMins <= arrMins) {
+                return {
+                    valid: false,
+                    reason: "INVALID_CAMPUS_TIME",
+                    message: `Campus Departure Time (${departureStr}) must be later than Arrival Time (${arrivalStr}).`
+                };
+            }
+
+            if (newStart < 0 || newEnd < 0 || newEnd <= newStart) {
+                return {
+                    valid: false,
+                    reason: "INVALID_SLOT_RANGE",
+                    message: `Session End Time (${endStr || '--:--'}) must be strictly after Start Time (${startStr || '--:--'}).`
+                };
+            }
+
+            // Check overlap against all existing logs on the same date:
+            // Overlap condition: newStart < existingEnd && newEnd > existingStart
+            const logsOnSameDate = activityLogs.filter(l => l.date === dateVal);
+            for (const existing of logsOnSameDate) {
+                const exStart = timeToMinutes(existing.slotStart);
+                const exEnd = timeToMinutes(existing.slotEnd);
+                if (newStart < exEnd && newEnd > exStart) {
+                    return {
+                        valid: false,
+                        reason: "OVERLAP_CONFLICT",
+                        conflictingLog: existing,
+                        sameDateLogs: logsOnSameDate,
+                        message: `Overlaps with ${existing.activityType}: "${existing.subjectOrExam}" (${existing.slotStart} – ${existing.slotEnd})`
+                    };
+                }
+            }
+
+            // Also check if session falls outside Campus Arrival & Departure window
+            if (arrMins >= 0 && depMins >= 0 && (newStart < arrMins || newEnd > depMins)) {
+                return {
+                    valid: false,
+                    reason: "OUTSIDE_CAMPUS_HOURS",
+                    message: `Session slot (${startStr} – ${endStr}) falls outside Dr. Alorika Chatterjee's logged campus hours (${arrivalStr} – ${departureStr}) on ${dateVal}.`
+                };
+            }
+
+            return {
+                valid: true,
+                sameDateLogs: logsOnSameDate
+            };
+        }
+
+        // Find the next non-overlapping 1-hour slot on the selected date
+        function findNextAvailableSlot(dateVal, durationMins = 60) {
+            const arrMins = Math.max(0, timeToMinutes(document.getElementById('arrival-time').value || "09:15"));
+            const depMins = timeToMinutes(document.getElementById('departure-time').value || "16:45");
+            const logsOnDate = activityLogs
+                .filter(l => l.date === dateVal)
+                .map(l => ({ s: timeToMinutes(l.slotStart), e: timeToMinutes(l.slotEnd) }))
+                .sort((a, b) => a.s - b.s);
+
+            let candidateStart = arrMins;
+            for (const interval of logsOnDate) {
+                if (candidateStart + durationMins <= interval.s) {
+                    break;
+                }
+                if (candidateStart < interval.e) {
+                    candidateStart = interval.e + 15; // 15-min break after existing class
+                }
+            }
+
+            if (candidateStart + durationMins <= depMins) {
+                return {
+                    start: minutesToTime(candidateStart),
+                    end: minutesToTime(candidateStart + durationMins)
+                };
+            }
+            return null;
+        }
+
+        // Live conflict badge updater as user edits Date, Slot Start, or Slot End
+        function checkLiveSlotConflict() {
+            const banner = document.getElementById('live-conflict-banner');
+            if (!banner) return;
+
+            const dateVal = document.getElementById('log-date').value;
+            const slotStart = document.getElementById('slot-start').value;
+            const slotEnd = document.getElementById('slot-end').value;
+            const arrivalTime = document.getElementById('arrival-time').value;
+            const departureTime = document.getElementById('departure-time').value;
+
+            const check = validateSessionTimeSlot(dateVal, slotStart, slotEnd, arrivalTime, departureTime);
+
+            if (!check.valid) {
+                if (check.reason === "OVERLAP_CONFLICT") {
+                    const c = check.conflictingLog;
+                    banner.className = "rounded-xl px-3.5 py-2.5 text-xs flex items-start gap-2.5 border transition-all bg-rose-50 border-rose-300 text-rose-900 shadow-xs";
+                    banner.innerHTML = `
+                        <i data-lucide="alert-octagon" class="w-4 h-4 text-rose-600 shrink-0 mt-0.5"></i>
+                        <div class="flex-1">
+                            <span class="font-extrabold uppercase tracking-wide text-rose-700">Time Overlap Conflict on ${dateVal}:</span>
+                            <p class="mt-0.5 font-medium">Slot <strong>${slotStart} – ${slotEnd}</strong> clashes with <strong>${c.subjectOrExam}</strong> (${c.semester}, ${c.slotStart} – ${c.slotEnd} in ${c.roomOrHall}).</p>
+                        </div>
+                    `;
+                } else {
+                    banner.className = "rounded-xl px-3.5 py-2.5 text-xs flex items-start gap-2.5 border transition-all bg-amber-50 border-amber-300 text-amber-900";
+                    banner.innerHTML = `
+                        <i data-lucide="alert-triangle" class="w-4 h-4 text-amber-600 shrink-0 mt-0.5"></i>
+                        <div class="flex-1">
+                            <span class="font-bold">Time Validation Alert:</span>
+                            <span>${check.message}</span>
+                        </div>
+                    `;
+                }
+            } else {
+                const countOnDate = (check.sameDateLogs || []).length;
+                banner.className = "rounded-xl px-3.5 py-2.5 text-xs flex items-start gap-2.5 border transition-all bg-emerald-50/70 border-emerald-200 text-emerald-800";
+                banner.innerHTML = `
+                    <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-600 shrink-0 mt-0.5"></i>
+                    <div class="flex-1">
+                        <span class="font-bold">Slot ${slotStart} – ${slotEnd} Available:</span>
+                        <span>No overlap on ${dateVal} (${countOnDate} other session${countOnDate === 1 ? '' : 's'} logged on this date).</span>
+                    </div>
+                `;
+            }
+            lucide.createIcons();
+        }
+
+        function openConflictModal(conflictInfo) {
+            const modal = document.getElementById('conflict-alert-modal');
+            const titleEl = document.getElementById('conflict-modal-title');
+            const descEl = document.getElementById('conflict-modal-desc');
+            const boxEl = document.getElementById('conflict-details-box');
+            const suggestionEl = document.getElementById('conflict-suggestion-text');
+            const autoFixBtn = document.getElementById('conflict-auto-fix-btn');
+
+            autoFixBtn.classList.add('hidden');
+
+            if (conflictInfo.reason === "OVERLAP_CONFLICT" && conflictInfo.conflictingLog) {
+                const c = conflictInfo.conflictingLog;
+                titleEl.textContent = "Date & Time Slot Overlap Detected!";
+                descEl.innerHTML = `Dr. Alorika Chatterjee already has a <strong>${c.activityType}</strong> scheduled on <strong>${conflictInfo.date}</strong> during an overlapping time window. Overlapping sessions on the same date are not permitted.`;
+
+                boxEl.innerHTML = `
+                    <div class="flex items-center justify-between border-b border-rose-200/80 pb-2">
+                        <span class="font-extrabold text-rose-800 uppercase tracking-wider">Conflicting Existing Entry (${c.id})</span>
+                        <span class="px-2 py-0.5 rounded bg-rose-200 text-rose-900 font-bold">${c.slotStart} – ${c.slotEnd}</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 pt-1 text-slate-700">
+                        <div><span class="text-slate-400 block text-[10px] uppercase font-bold">Date</span><strong class="text-slate-900">${c.date}</strong></div>
+                        <div><span class="text-slate-400 block text-[10px] uppercase font-bold">Activity & Sem</span><strong class="text-slate-900">${c.activityType} (${c.semester})</strong></div>
+                        <div class="col-span-2"><span class="text-slate-400 block text-[10px] uppercase font-bold">Course / Exam Duty</span><strong class="text-slate-900">${c.subjectOrExam}</strong></div>
+                        <div><span class="text-slate-400 block text-[10px] uppercase font-bold">Room / Hall</span><strong class="text-slate-900">${c.roomOrHall}</strong></div>
+                        <div><span class="text-slate-400 block text-[10px] uppercase font-bold">Your Attempted Slot</span><strong class="text-rose-700">${conflictInfo.attemptedStart} – ${conflictInfo.attemptedEnd}</strong></div>
+                    </div>
+                `;
+
+                const nextFree = findNextAvailableSlot(conflictInfo.date, 60);
+                if (nextFree) {
+                    suggestionEl.textContent = `Next free 1-hr slot on ${conflictInfo.date}: ${nextFree.start} – ${nextFree.end}`;
+                    autoFixBtn.classList.remove('hidden');
+                    autoFixBtn.onclick = () => {
+                        document.getElementById('slot-start').value = nextFree.start;
+                        document.getElementById('slot-end').value = nextFree.end;
+                        checkLiveSlotConflict();
+                        closeConflictModal();
+                        showToast(`Updated time slot to next available window: ${nextFree.start} – ${nextFree.end}`, "info");
+                    };
+                } else {
+                    suggestionEl.textContent = "Please choose a non-overlapping Start and End time for this date.";
+                }
+            } else {
+                titleEl.textContent = "Invalid Time Range / Schedule Alert";
+                descEl.textContent = conflictInfo.message || "Please verify your Start and End times before saving.";
+                boxEl.innerHTML = `
+                    <div class="text-rose-900 font-semibold">
+                        ${conflictInfo.message || "End time must be strictly greater than Start time, and sessions must fall within Campus Arrival & Departure hours."}
+                    </div>
+                `;
+                suggestionEl.textContent = "Adjust the session Start/End time or update the Campus Arrival/Departure log above.";
+            }
+
+            modal.classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function closeConflictModal() {
+            document.getElementById('conflict-alert-modal').classList.add('hidden');
+        }
+
+        // --- ACTIVITY TYPE & STUDENT ATTENDANCE SHEET ---
+        function setActivityType(type) {
+            currentActivityType = type;
+
+            // Highlight active button
+            document.querySelectorAll('.duty-type-btn').forEach(btn => {
+                if (btn.dataset.type === type) {
+                    btn.className = "duty-type-btn flex items-center gap-2 px-3 py-2.5 rounded-xl border text-xs font-semibold transition bg-brand-50 border-brand-600 text-brand-700 shadow-sm";
+                } else {
+                    btn.className = "duty-type-btn flex items-center gap-2 px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition";
+                }
+            });
+
+            const classFields = document.getElementById('class-fields-container');
+            const examFields = document.getElementById('exam-fields-container');
+
+            if (type === 'Exam Duty') {
+                classFields.classList.add('hidden');
+                examFields.classList.remove('hidden');
+                toggleExamRosterMode();
+            } else {
+                classFields.classList.remove('hidden');
+                examFields.classList.add('hidden');
+                document.getElementById('student-attendance-grid').classList.remove('hidden');
+                document.getElementById('manual-headcount-box').classList.add('hidden');
+                updateAttendanceCounters();
+            }
+        }
+
+        function toggleExamRosterMode() {
+            const useRoster = document.getElementById('exam-track-roster').checked;
+            const grid = document.getElementById('student-attendance-grid');
+            const manualBox = document.getElementById('manual-headcount-box');
+
+            if (currentActivityType === 'Exam Duty' && !useRoster) {
+                grid.classList.add('hidden');
+                manualBox.classList.remove('hidden');
+                syncManualHeadcount();
+            } else {
+                grid.classList.remove('hidden');
+                manualBox.classList.add('hidden');
+                updateAttendanceCounters();
+            }
+        }
+
+        function syncManualHeadcount() {
+            const total = Math.max(1, parseInt(document.getElementById('manual-total-count').value) || 0);
+            const present = Math.min(total, Math.max(0, parseInt(document.getElementById('manual-present-count').value) || 0));
+            const absent = total - present;
+            const pct = total > 0 ? Math.round((present / total) * 100) : 0;
+
+            document.getElementById('stat-total-students').textContent = total;
+            document.getElementById('stat-present-students').textContent = present;
+            document.getElementById('stat-absent-students').textContent = absent;
+            document.getElementById('stat-attendance-pct').textContent = `${pct}%`;
+        }
+
+        function handleSemesterChange() {
+            const sem = document.getElementById('semester-select').value;
+            document.getElementById('active-sem-pill').textContent = sem;
+
+            const students = semesterRosters[sem] || [];
+            currentSessionAttendance = {};
+            // Default all students to Present (true)
+            students.forEach(s => {
+                currentSessionAttendance[s.roll] = true;
+            });
+
+            renderEntryAttendanceList();
+        }
+
+        function renderEntryAttendanceList() {
+            const sem = document.getElementById('semester-select').value;
+            const students = semesterRosters[sem] || [];
+            const query = (document.getElementById('student-search-input').value || '').toLowerCase().trim();
+            const grid = document.getElementById('student-attendance-grid');
+
+            const filtered = students.filter(s =>
+                s.name.toLowerCase().includes(query) || s.roll.toLowerCase().includes(query)
+            );
+
+            if (filtered.length === 0) {
+                grid.innerHTML = `
+                    <div class="col-span-full py-10 text-center text-slate-400 text-xs">
+                        No matching students found in ${sem}.
+                    </div>
+                `;
+            } else {
+                grid.innerHTML = filtered.map(student => {
+                    const isPresent = currentSessionAttendance[student.roll] !== false;
+                    return `
+                        <div onclick="toggleStudentStatus('${student.roll}')" 
+                             class="student-card-transition cursor-pointer select-none flex items-center justify-between p-3 rounded-xl border ${isPresent ? 'bg-emerald-50/50 border-emerald-200 hover:bg-emerald-50' : 'bg-rose-50/60 border-rose-200 hover:bg-rose-50'}">
+                            <div class="flex items-center gap-2.5 min-w-0">
+                                <div class="w-8 h-8 rounded-lg font-bold text-xs flex items-center justify-center shrink-0 ${isPresent ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'}">
+                                    ${isPresent ? 'P' : 'A'}
+                                </div>
+                                <div class="truncate">
+                                    <p class="text-xs sm:text-sm font-bold text-slate-800 truncate">${student.name}</p>
+                                    <p class="text-[11px] font-medium text-slate-500">${student.roll}</p>
+                                </div>
+                            </div>
+                            <span class="text-[11px] font-bold px-2.5 py-1 rounded-full shrink-0 ${isPresent ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">
+                                ${isPresent ? 'Present' : 'Absent'}
+                            </span>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            updateAttendanceCounters();
+        }
+
+        function toggleStudentStatus(roll) {
+            currentSessionAttendance[roll] = !currentSessionAttendance[roll];
+            renderEntryAttendanceList();
+        }
+
+        function markAllAttendance(presentBool) {
+            const sem = document.getElementById('semester-select').value;
+            const students = semesterRosters[sem] || [];
+            students.forEach(s => {
+                currentSessionAttendance[s.roll] = presentBool;
+            });
+            renderEntryAttendanceList();
+            showToast(`Marked all ${students.length} students in ${sem} as ${presentBool ? 'Present' : 'Absent'}`, 'info');
+        }
+
+        function updateAttendanceCounters() {
+            const sem = document.getElementById('semester-select').value;
+            const students = semesterRosters[sem] || [];
+            const total = students.length;
+            let present = 0;
+            students.forEach(s => {
+                if (currentSessionAttendance[s.roll] !== false) present++;
+            });
+            const absent = total - present;
+            const pct = total > 0 ? Math.round((present / total) * 100) : 0;
+
+            document.getElementById('stat-total-students').textContent = total;
+            document.getElementById('stat-present-students').textContent = present;
+            document.getElementById('stat-absent-students').textContent = absent;
+            document.getElementById('stat-attendance-pct').textContent = `${pct}%`;
+        }
+
+        function openQuickAddStudentModal() {
+            const sem = document.getElementById('semester-select').value;
+            document.getElementById('roster-sem-select').value = sem;
+            switchTab('roster');
+            document.getElementById('new-student-roll').focus();
+        }
+
+        // --- SAVE ACTIVITY LOG ENTRY ---
+        function saveFullActivityLog() {
+            const dateVal = document.getElementById('log-date').value;
+            const arrivalTime = document.getElementById('arrival-time').value;
+            const departureTime = document.getElementById('departure-time').value;
+            const semester = document.getElementById('semester-select').value;
+            const slotStart = document.getElementById('slot-start').value;
+            const slotEnd = document.getElementById('slot-end').value;
+            const remarks = document.getElementById('entry-remarks').value.trim();
+
+            if (!dateVal || !arrivalTime || !departureTime) {
+                showToast("Please fill in the Date, Arrival Time, and Departure Time.", "error");
+                return;
+            }
+
+            // Strict Date & Time Overlap Validation Check
+            const validation = validateSessionTimeSlot(dateVal, slotStart, slotEnd, arrivalTime, departureTime);
+            if (!validation.valid) {
+                openConflictModal({
+                    ...validation,
+                    date: dateVal,
+                    attemptedStart: slotStart,
+                    attemptedEnd: slotEnd
+                });
+                return;
+            }
+
+            let subjectOrExam = "";
+            let roomOrHall = "";
+            let topicOrRole = "";
+
+            if (currentActivityType === 'Exam Duty') {
+                subjectOrExam = document.getElementById('exam-name').value.trim();
+                roomOrHall = document.getElementById('exam-hall').value.trim() || "Exam Hall";
+                topicOrRole = document.getElementById('exam-role').value;
+                if (!subjectOrExam) {
+                    showToast("Please enter the Examination Name & Paper Code.", "error");
+                    return;
+                }
+            } else {
+                subjectOrExam = document.getElementById('subject-name').value.trim();
+                roomOrHall = document.getElementById('class-room').value.trim() || "Physics Classroom";
+                topicOrRole = document.getElementById('class-topic').value.trim() || "Regular Physics Session";
+                if (!subjectOrExam) {
+                    showToast("Please enter the Physics Paper / Course Name.", "error");
+                    return;
+                }
+            }
+
+            // Build student attendance snapshot
+            let attendanceList = [];
+            let totalStudents = 0;
+            let presentCount = 0;
+            let absentCount = 0;
+
+            const useRoster = currentActivityType !== 'Exam Duty' || document.getElementById('exam-track-roster').checked;
+
+            if (useRoster) {
+                const students = semesterRosters[semester] || [];
+                attendanceList = students.map(s => {
+                    const isP = currentSessionAttendance[s.roll] !== false;
+                    if (isP) presentCount++;
+                    return {
+                        roll: s.roll,
+                        name: s.name,
+                        status: isP ? 'P' : 'A'
+                    };
+                });
+                totalStudents = students.length;
+                absentCount = totalStudents - presentCount;
+            } else {
+                totalStudents = Math.max(1, parseInt(document.getElementById('manual-total-count').value) || 0);
+                presentCount = Math.min(totalStudents, Math.max(0, parseInt(document.getElementById('manual-present-count').value) || 0));
+                absentCount = totalStudents - presentCount;
+                attendanceList = [];
+            }
+
+            // Save timing for the date
+            dailyTimings[dateVal] = { arrival: arrivalTime, departure: departureTime };
+
+            const newLog = {
+                id: "LOG-" + Date.now().toString().slice(-5),
+                date: dateVal,
+                arrivalTime,
+                departureTime,
+                activityType: currentActivityType,
+                semester,
+                slotStart,
+                slotEnd,
+                subjectOrExam,
+                roomOrHall,
+                topicOrRole,
+                remarks,
+                totalStudents,
+                presentCount,
+                absentCount,
+                attendanceList
+            };
+
+            activityLogs.unshift(newLog);
+            saveAllToStorage();
+            renderRecentLogsTable();
+            checkLiveSlotConflict();
+            document.getElementById('entry-remarks').value = '';
+
+            showToast(`${currentActivityType} saved for ${dateVal} (${slotStart}–${slotEnd}, ${presentCount}/${totalStudents} Present)!`, "success");
+        }
+
+        // --- RECENT LOGS TABLE (BOTTOM OF TAB 1) ---
+        function getBadgeHtmlForType(type) {
+            if (type === 'Exam Duty') {
+                return `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200"><i data-lucide="shield-check" class="w-3 h-3"></i> Exam Duty</span>`;
+            } else if (type === 'Lab Session') {
+                return `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-800 border border-purple-200"><i data-lucide="flask-conical" class="w-3 h-3"></i> Lab Class</span>`;
+            } else if (type === 'Tutorial / Extra') {
+                return `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-sky-100 text-sky-800 border border-sky-200"><i data-lucide="sparkles" class="w-3 h-3"></i> Tutorial</span>`;
+            }
+            return `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200"><i data-lucide="presentation" class="w-3 h-3"></i> Lecture</span>`;
+        }
+
+        function renderRecentLogsTable() {
+            const tbody = document.getElementById('recent-logs-tbody');
+            const sorted = [...activityLogs].sort((a, b) => (b.date + b.slotStart).localeCompare(a.date + a.slotStart));
+            const recent = sorted.slice(0, 5);
+
+            if (recent.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-slate-400">No logs recorded yet. Use the form above to add your first entry.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = recent.map(log => {
+                const pct = log.totalStudents > 0 ? Math.round((log.presentCount / log.totalStudents) * 100) : 0;
+                return `
+                    <tr class="hover:bg-slate-50/80 transition">
+                        <td class="py-3 px-3">
+                            <p class="font-bold text-slate-800">${log.date}</p>
+                            <p class="text-[11px] text-slate-500">In: ${log.arrivalTime} • Out: ${log.departureTime}</p>
+                        </td>
+                        <td class="py-3 px-3">${getBadgeHtmlForType(log.activityType)}</td>
+                        <td class="py-3 px-3">
+                            <span class="font-bold text-slate-800">${log.semester}</span>
+                            <p class="text-[11px] text-slate-500">${log.slotStart} - ${log.slotEnd}</p>
+                        </td>
+                        <td class="py-3 px-3">
+                            <p class="font-bold text-slate-800">${log.subjectOrExam}</p>
+                            <p class="text-[11px] text-slate-500">${log.roomOrHall} • ${log.topicOrRole}</p>
+                        </td>
+                        <td class="py-3 px-3">
+                            <div class="flex items-center gap-2">
+                                <span class="font-bold text-emerald-700">${log.presentCount}/${log.totalStudents}</span>
+                                <span class="text-[11px] px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 font-semibold">${pct}%</span>
+                            </div>
+                        </td>
+                        <td class="py-3 px-3 text-right">
+                            <button onclick="openStudentModal('${log.id}')" class="px-2.5 py-1.5 rounded-lg bg-brand-50 hover:bg-brand-100 text-brand-700 font-semibold text-xs transition">
+                                View Students
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+            lucide.createIcons();
+        }
+
+        // --- REPORTS & FILTERING ENGINE (TAB 2) ---
+        function handleFilterModeChange() {
+            const mode = document.getElementById('filter-date-mode').value;
+            const fromWrapper = document.getElementById('filter-from-wrapper');
+            const toWrapper = document.getElementById('filter-to-wrapper');
+            const fromLabel = document.getElementById('filter-from-label');
+
+            if (mode === 'single') {
+                fromWrapper.classList.remove('hidden');
+                toWrapper.classList.add('hidden');
+                fromLabel.textContent = 'Select Date';
+            } else if (mode === 'range') {
+                fromWrapper.classList.remove('hidden');
+                toWrapper.classList.remove('hidden');
+                fromLabel.textContent = 'From Date';
+            } else {
+                fromWrapper.classList.add('hidden');
+                toWrapper.classList.add('hidden');
+            }
+            renderReportView();
+        }
+
+        function setQuickDatePreset(preset) {
+            const today = getRelativeDateStr(0);
+            if (preset === 'today') {
+                document.getElementById('filter-date-mode').value = 'single';
+                document.getElementById('filter-from-date').value = today;
+            } else {
+                document.getElementById('filter-date-mode').value = 'all';
+                document.getElementById('filter-semester').value = 'ALL';
+                document.getElementById('filter-type').value = 'ALL';
+                document.getElementById('report-search').value = '';
+            }
+            handleFilterModeChange();
+        }
+
+        function getFilteredLogs() {
+            const mode = document.getElementById('filter-date-mode').value;
+            const fromDate = document.getElementById('filter-from-date').value;
+            const toDate = document.getElementById('filter-to-date').value;
+            const semFilter = document.getElementById('filter-semester').value;
+            const typeFilter = document.getElementById('filter-type').value;
+            const search = (document.getElementById('report-search').value || '').toLowerCase().trim();
+
+            return activityLogs.filter(log => {
+                // Date check
+                if (mode === 'single' && fromDate) {
+                    if (log.date !== fromDate) return false;
+                } else if (mode === 'range') {
+                    if (fromDate && log.date < fromDate) return false;
+                    if (toDate && log.date > toDate) return false;
+                }
+
+                // Semester check
+                if (semFilter !== 'ALL' && log.semester !== semFilter) return false;
+
+                // Activity Type check
+                if (typeFilter === 'CLASSES_ONLY') {
+                    if (log.activityType === 'Exam Duty') return false;
+                } else if (typeFilter !== 'ALL') {
+                    if (log.activityType !== typeFilter) return false;
+                }
+
+                // Search keyword check (matches subject, room, topic, or even a student's name!)
+                if (search) {
+                    const hay = `${log.subjectOrExam} ${log.roomOrHall} ${log.topicOrRole} ${log.remarks} ${log.semester}`.toLowerCase();
+                    const studentMatch = (log.attendanceList || []).some(s =>
+                        s.name.toLowerCase().includes(search) || s.roll.toLowerCase().includes(search)
+                    );
+                    if (!hay.includes(search) && !studentMatch) return false;
+                }
+
+                return true;
+            }).sort((a, b) => (b.date + b.slotStart).localeCompare(a.date + a.slotStart));
+        }
+
+        function renderReportView() {
+            const filtered = getFilteredLogs();
+            const tbody = document.getElementById('report-table-body');
+
+            // Compute KPIs
+            const uniqueDates = {};
+            let classesCount = 0;
+            let examDutiesCount = 0;
+            let sumPresent = 0;
+            let sumTotal = 0;
+
+            filtered.forEach(log => {
+                uniqueDates[log.date] = { arrival: log.arrivalTime, departure: log.departureTime };
+                if (log.activityType === 'Exam Duty') {
+                    examDutiesCount++;
+                } else {
+                    classesCount++;
+                }
+                sumPresent += log.presentCount;
+                sumTotal += log.totalStudents;
+            });
+
+            const uniqueDayKeys = Object.keys(uniqueDates);
+            let totalCampusMinutes = 0;
+            uniqueDayKeys.forEach(d => {
+                totalCampusMinutes += calculateDurationMinutes(uniqueDates[d].arrival, uniqueDates[d].departure);
+            });
+
+            const avgAtt = sumTotal > 0 ? Math.round((sumPresent / sumTotal) * 100) : 0;
+
+            document.getElementById('kpi-days').textContent = uniqueDayKeys.length;
+            document.getElementById('kpi-hours-sub').textContent = `${formatMinutesToHrs(totalCampusMinutes)} total on campus`;
+            document.getElementById('kpi-classes').textContent = classesCount;
+            document.getElementById('kpi-exams').textContent = examDutiesCount;
+            document.getElementById('kpi-avg-att').textContent = `${avgAtt}%`;
+            document.getElementById('kpi-att-counts').textContent = `${sumPresent} present / ${sumTotal} total`;
+            document.getElementById('report-count-subtitle').textContent = `Showing ${filtered.length} matching activity record(s) across ${uniqueDayKeys.length} day(s)`;
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" class="py-12 text-center text-slate-400">
+                            <p class="font-semibold text-sm text-slate-600">No logs match your current date range or filter criteria</p>
+                            <p class="text-xs mt-1">Try clicking "Show All" or expanding the From/To date range above.</p>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = filtered.map(log => {
+                const pct = log.totalStudents > 0 ? Math.round((log.presentCount / log.totalStudents) * 100) : 0;
+                const campusMins = calculateDurationMinutes(log.arrivalTime, log.departureTime);
+                return `
+                    <tr class="hover:bg-slate-50/90 transition">
+                        <td class="py-3.5 px-4 whitespace-nowrap">
+                            <span class="font-bold text-slate-900">${log.date}</span>
+                            <span class="block text-[11px] text-slate-400">ID: ${log.id}</span>
+                        </td>
+                        <td class="py-3.5 px-4 whitespace-nowrap">
+                            <div class="text-xs font-semibold text-slate-800">
+                                <span class="text-emerald-700">In: ${log.arrivalTime}</span> • <span class="text-rose-700">Out: ${log.departureTime}</span>
+                            </div>
+                            <span class="text-[11px] text-slate-500">${formatMinutesToHrs(campusMins)} on campus</span>
+                        </td>
+                        <td class="py-3.5 px-4 whitespace-nowrap">
+                            ${getBadgeHtmlForType(log.activityType)}
+                        </td>
+                        <td class="py-3.5 px-4 whitespace-nowrap">
+                            <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-800 font-bold text-xs">${log.semester}</span>
+                            <span class="block text-[11px] text-slate-500 mt-0.5">${log.slotStart} - ${log.slotEnd}</span>
+                        </td>
+                        <td class="py-3.5 px-4">
+                            <p class="font-bold text-slate-900">${log.subjectOrExam}</p>
+                            <p class="text-xs text-slate-500">${log.roomOrHall} — <span class="italic">${log.topicOrRole}</span></p>
+                            ${log.remarks ? `<p class="text-[11px] text-slate-400 mt-0.5">Note: ${log.remarks}</p>` : ''}
+                        </td>
+                        <td class="py-3.5 px-4 whitespace-nowrap">
+                            <div class="flex items-center gap-2">
+                                <div>
+                                    <span class="font-extrabold text-slate-900">${log.presentCount}</span>
+                                    <span class="text-slate-400">/ ${log.totalStudents}</span>
+                                    <span class="ml-1 text-xs font-bold ${pct >= 75 ? 'text-emerald-600' : 'text-amber-600'}">(${pct}%)</span>
+                                </div>
+                            </div>
+                            <div class="w-24 h-1.5 bg-slate-100 rounded-full overflow-hidden mt-1">
+                                <div class="h-full ${pct >= 75 ? 'bg-emerald-500' : 'bg-amber-500'}" style="width: ${pct}%"></div>
+                            </div>
+                        </td>
+                        <td class="py-3.5 px-4 text-right whitespace-nowrap">
+                            <div class="flex items-center justify-end gap-1.5">
+                                <button onclick="openStudentModal('${log.id}')" class="px-3 py-1.5 rounded-lg bg-brand-50 hover:bg-brand-100 text-brand-700 font-semibold text-xs flex items-center gap-1 transition">
+                                    <i data-lucide="users" class="w-3.5 h-3.5"></i>
+                                    <span>View Students</span>
+                                </button>
+                                <button onclick="deleteActivityLog('${log.id}')" title="Delete Log" class="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition">
+                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            lucide.createIcons();
+        }
+
+        function deleteActivityLog(logId) {
+            activityLogs = activityLogs.filter(l => l.id !== logId);
+            saveAllToStorage();
+            renderRecentLogsTable();
+            renderReportView();
+            checkLiveSlotConflict();
+            showToast("Log entry deleted.", "info");
+        }
+
+        // --- STUDENT BREAKDOWN MODAL ---
+        function openStudentModal(logId) {
+            const log = activityLogs.find(l => l.id === logId);
+            if (!log) return;
+            activeModalLog = log;
+            activeModalFilter = 'ALL';
+
+            document.getElementById('modal-badge-type').textContent = log.activityType;
+            document.getElementById('modal-title').textContent = log.subjectOrExam;
+            document.getElementById('modal-subtitle').textContent = `Date: ${log.date} | ${log.semester} | Time Slot: ${log.slotStart} - ${log.slotEnd} | Room: ${log.roomOrHall}`;
+
+            const pct = log.totalStudents > 0 ? Math.round((log.presentCount / log.totalStudents) * 100) : 0;
+            document.getElementById('modal-meta-bar').innerHTML = `
+                <div>
+                    <span class="text-slate-400 block">Campus Arrival / Out</span>
+                    <span class="font-bold text-slate-800">${log.arrivalTime} — ${log.departureTime}</span>
+                </div>
+                <div>
+                    <span class="text-slate-400 block">Topic / Duty Role</span>
+                    <span class="font-bold text-slate-800">${log.topicOrRole}</span>
+                </div>
+                <div>
+                    <span class="text-slate-400 block">Present / Total</span>
+                    <span class="font-bold text-emerald-700">${log.presentCount} Present</span> / <span class="font-bold text-rose-600">${log.absentCount} Absent</span>
+                </div>
+                <div>
+                    <span class="text-slate-400 block">Attendance Rate</span>
+                    <span class="font-extrabold text-brand-600">${pct}% (${log.totalStudents} Students)</span>
+                </div>
+            `;
+
+            document.getElementById('modal-single-pdf-btn').onclick = () => exportSingleSessionPDF(log);
+
+            filterModalStudents('ALL');
+            document.getElementById('student-detail-modal').classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function filterModalStudents(filterType) {
+            activeModalFilter = filterType;
+            if (!activeModalLog) return;
+
+            const listContainer = document.getElementById('modal-student-list');
+            const list = activeModalLog.attendanceList || [];
+
+            if (list.length === 0) {
+                listContainer.innerHTML = `
+                    <div class="col-span-full py-8 text-center text-slate-500 text-xs bg-slate-50 rounded-xl border border-slate-200">
+                        Manual Headcount Recorded: <strong>${activeModalLog.presentCount} Present</strong> out of <strong>${activeModalLog.totalStudents} Total Candidates</strong>.
+                    </div>
+                `;
+                return;
+            }
+
+            const filtered = list.filter(s => filterType === 'ALL' ? true : s.status === filterType);
+
+            listContainer.innerHTML = filtered.map(s => {
+                const isP = s.status === 'P';
+                return `
+                    <div class="flex items-center justify-between p-2.5 rounded-xl border ${isP ? 'bg-emerald-50/40 border-emerald-200' : 'bg-rose-50/50 border-rose-200'}">
+                        <div class="flex items-center gap-2.5">
+                            <span class="w-6 h-6 rounded-md text-xs font-bold flex items-center justify-center ${isP ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'}">${s.status}</span>
+                            <div>
+                                <p class="text-xs font-bold text-slate-800">${s.name}</p>
+                                <p class="text-[10px] text-slate-500">${s.roll}</p>
+                            </div>
+                        </div>
+                        <span class="text-[11px] font-bold px-2 py-0.5 rounded-full ${isP ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">
+                            ${isP ? 'Present' : 'Absent'}
+                        </span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function closeStudentModal() {
+            document.getElementById('student-detail-modal').classList.add('hidden');
+            activeModalLog = null;
+        }
+
+        // --- ROSTER MANAGER (TAB 3) ---
+        function renderRosterManager() {
+            const sem = document.getElementById('roster-sem-select').value;
+            const list = semesterRosters[sem] || [];
+            document.getElementById('roster-list-heading').textContent = `Enrolled Students in ${sem}`;
+            document.getElementById('roster-count-badge').textContent = `${list.length} Students`;
+
+            const container = document.getElementById('roster-manager-list');
+            if (list.length === 0) {
+                container.innerHTML = `<div class="col-span-full py-8 text-center text-slate-400 text-xs">No students in ${sem}. Add one on the left.</div>`;
+                return;
+            }
+
+            container.innerHTML = list.map((s, idx) => `
+                <div class="flex items-center justify-between p-3 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition">
+                    <div>
+                        <p class="text-xs sm:text-sm font-bold text-slate-800">${s.name}</p>
+                        <p class="text-[11px] font-medium text-slate-500">${s.roll}</p>
+                    </div>
+                    <button onclick="removeStudentFromRoster('${sem}', ${idx})" class="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition" title="Remove Student">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        function addStudentToRoster() {
+            const sem = document.getElementById('roster-sem-select').value;
+            const rollInput = document.getElementById('new-student-roll');
+            const nameInput = document.getElementById('new-student-name');
+            const roll = rollInput.value.trim().toUpperCase();
+            const name = nameInput.value.trim();
+
+            if (!roll || !name) {
+                showToast("Please enter both Roll Number and Student Full Name.", "error");
+                return;
+            }
+
+            if (!semesterRosters[sem]) semesterRosters[sem] = [];
+            semesterRosters[sem].push({ roll, name });
+
+            saveAllToStorage();
+            rollInput.value = '';
+            nameInput.value = '';
+            renderRosterManager();
+            handleSemesterChange();
+            showToast(`Added ${name} (${roll}) to ${sem} roster!`, "success");
+        }
+
+        function removeStudentFromRoster(sem, index) {
+            semesterRosters[sem].splice(index, 1);
+            saveAllToStorage();
+            renderRosterManager();
+            handleSemesterChange();
+            showToast("Student removed from roster.", "info");
+        }
+
+        // --- EXCEL (.XLSX) MULTI-SHEET EXPORT ---
+        function exportReportToExcel() {
+            const filtered = getFilteredLogs();
+            if (filtered.length === 0) {
+                showToast("No logs in the current filter to export!", "error");
+                return;
+            }
+
+            try {
+                const wb = XLSX.utils.book_new();
+
+                // Sheet 1: Daily Activity & Attendance Summary
+                const summaryRows = filtered.map((log, index) => {
+                    const pct = log.totalStudents > 0 ? Math.round((log.presentCount / log.totalStudents) * 100) : 0;
+                    const campusMins = calculateDurationMinutes(log.arrivalTime, log.departureTime);
+                    return {
+                        "SL No.": index + 1,
+                        "Faculty Name": FACULTY_PROFILE.name,
+                        "Department & Institution": FACULTY_PROFILE.designation,
+                        "Log ID": log.id,
+                        "Date": log.date,
+                        "Arrival Time": log.arrivalTime,
+                        "Departure Time": log.departureTime,
+                        "Campus Duration": formatMinutesToHrs(campusMins),
+                        "Activity / Duty Type": log.activityType,
+                        "Semester": log.semester,
+                        "Slot Start": log.slotStart,
+                        "Slot End": log.slotEnd,
+                        "Physics Paper / Exam Name": log.subjectOrExam,
+                        "Room / Exam Hall": log.roomOrHall,
+                        "Topic / Invigilation Role": log.topicOrRole,
+                        "Total Students": log.totalStudents,
+                        "Students Present": log.presentCount,
+                        "Students Absent": log.absentCount,
+                        "Attendance %": `${pct}%`,
+                        "Remarks": log.remarks || "-"
+                    };
+                });
+
+                const wsSummary = XLSX.utils.json_to_sheet(summaryRows);
+                XLSX.utils.book_append_sheet(wb, wsSummary, "Summary Log Report");
+
+                // Sheet 2: Each Student's Attendance Breakdown
+                const studentDetailRows = [];
+                filtered.forEach(log => {
+                    if (log.attendanceList && log.attendanceList.length > 0) {
+                        log.attendanceList.forEach(st => {
+                            studentDetailRows.push({
+                                "Faculty": FACULTY_PROFILE.name,
+                                "Department": FACULTY_PROFILE.designation,
+                                "Date": log.date,
+                                "Log ID": log.id,
+                                "Activity Type": log.activityType,
+                                "Semester": log.semester,
+                                "Time Slot": `${log.slotStart} - ${log.slotEnd}`,
+                                "Physics Course / Exam": log.subjectOrExam,
+                                "Roll Number": st.roll,
+                                "Student Name": st.name,
+                                "Attendance Status": st.status === 'P' ? 'Present' : 'Absent'
+                            });
+                        });
+                    }
+                });
+
+                if (studentDetailRows.length > 0) {
+                    const wsStudents = XLSX.utils.json_to_sheet(studentDetailRows);
+                    XLSX.utils.book_append_sheet(wb, wsStudents, "Student-Wise Attendance");
+                }
+
+                const fileName = `Dr_Alorika_Chatterjee_Physics_Log_Report_${getRelativeDateStr(0)}.xlsx`;
+                XLSX.writeFile(wb, fileName);
+                showToast(`Excel report exported (${fileName})!`, "success");
+            } catch (err) {
+                console.error(err);
+                showToast("Failed to generate Excel file.", "error");
+            }
+        }
+
+        // --- OFFICIAL PDF REPORT EXPORT ---
+        function exportReportToPDF() {
+            const filtered = getFilteredLogs();
+            if (filtered.length === 0) {
+                showToast("No logs in the current filter to export!", "error");
+                return;
+            }
+
+            try {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF('landscape', 'pt', 'a4');
+
+                // Header Banner
+                doc.setFillColor(30, 41, 59);
+                doc.rect(0, 0, doc.internal.pageSize.getWidth(), 74, 'F');
+
+                doc.setTextColor(255, 255, 255);
+                doc.setFontSize(15);
+                doc.setFont('helvetica', 'bold');
+                doc.text("THE HERITAGE COLLEGE — FACULTY DAILY LOG, CLASS ATTENDANCE & EXAM DUTY REPORT", 40, 30);
+
+                doc.setFontSize(10.5);
+                doc.setFont('helvetica', 'normal');
+                doc.text(`Faculty: ${FACULTY_PROFILE.name}   |   Designation: ${FACULTY_PROFILE.designation}   |   Generated: ${new Date().toLocaleString()}`, 40, 52);
+
+                // Summary Table
+                const tableBody = filtered.map((log, i) => {
+                    const pct = log.totalStudents > 0 ? Math.round((log.presentCount / log.totalStudents) * 100) : 0;
+                    const presentNames = (log.attendanceList || [])
+                        .filter(s => s.status === 'A')
+                        .map(s => `${s.name} (${s.roll.split('/').pop()})`)
+                        .join(', ');
+
+                    return [
+                        i + 1,
+                        `${log.date}\nIn: ${log.arrivalTime}\nOut: ${log.departureTime}`,
+                        log.activityType,
+                        `${log.semester}\n(${log.slotStart}-${log.slotEnd})`,
+                        `${log.subjectOrExam}\n[${log.roomOrHall} - ${log.topicOrRole}]`,
+                        `${log.presentCount} / ${log.totalStudents}\n(${pct}%)`,
+                        presentNames ? `Absent: ${presentNames}` : 'All Present'
+                    ];
+                });
+
+                doc.autoTable({
+                    startY: 90,
+                    head: [['#', 'Date & Timing', 'Duty Type', 'Sem & Slot', 'Physics Course / Exam Details', 'Attendance', 'Absentees / Roll-Call Summary']],
+                    body: tableBody,
+                    theme: 'grid',
+                    headStyles: { fillColor: [79, 70, 229], textColor: 255, fontSize: 9, fontStyle: 'bold' },
+                    bodyStyles: { fontSize: 8.5, cellPadding: 6, valign: 'middle' },
+                    columnStyles: {
+                        0: { cellWidth: 28 },
+                        1: { cellWidth: 85 },
+                        2: { cellWidth: 75 },
+                        3: { cellWidth: 75 },
+                        4: { cellWidth: 210 },
+                        5: { cellWidth: 65 },
+                        6: { cellWidth: 'auto' }
+                    }
+                });
+
+                const fileName = `Dr_Alorika_Chatterjee_Physics_Report_${getRelativeDateStr(0)}.pdf`;
+                doc.save(fileName);
+                showToast(`Official PDF report downloaded (${fileName})!`, "success");
+            } catch (err) {
+                console.error(err);
+                showToast("Error generating PDF report.", "error");
+            }
+        }
+
+        // Single Session Detailed Student Roll-Call PDF
+        function exportSingleSessionPDF(log) {
+            try {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF('portrait', 'pt', 'a4');
+
+                doc.setFillColor(79, 70, 229);
+                doc.rect(0, 0, doc.internal.pageSize.getWidth(), 82, 'F');
+
+                doc.setTextColor(255, 255, 255);
+                doc.setFontSize(13.5);
+                doc.setFont('helvetica', 'bold');
+                doc.text(`${log.activityType.toUpperCase()} — STUDENT ATTENDANCE SHEET`, 40, 26);
+
+                doc.setFontSize(10);
+                doc.setFont('helvetica', 'normal');
+                doc.text(`Faculty: ${FACULTY_PROFILE.name} (${FACULTY_PROFILE.designation})`, 40, 43);
+                doc.text(`${log.subjectOrExam}  |  ${log.semester}  |  Date: ${log.date} (${log.slotStart} - ${log.slotEnd})`, 40, 58);
+                doc.text(`Campus Arrival: ${log.arrivalTime}  |  Departure: ${log.departureTime}  |  Present: ${log.presentCount}/${log.totalStudents}`, 40, 72);
+
+                const rows = (log.attendanceList || []).map((st, idx) => [
+                    idx + 1,
+                    st.roll,
+                    st.name,
+                    st.status === 'P' ? 'PRESENT' : 'ABSENT'
+                ]);
+
+                doc.autoTable({
+                    startY: 98,
+                    head: [['SL', 'Roll Number', 'Student Full Name', 'Attendance Status']],
+                    body: rows,
+                    theme: 'striped',
+                    headStyles: { fillColor: [30, 41, 59], textColor: 255, fontSize: 9.5 },
+                    bodyStyles: { fontSize: 9, cellPadding: 6 },
+                    didParseCell: function (data) {
+                        if (data.section === 'body' && data.column.index === 3) {
+                            if (data.cell.raw === 'ABSENT') {
+                                data.cell.styles.textColor = [225, 29, 72];
+                                data.cell.styles.fontStyle = 'bold';
+                            } else {
+                                data.cell.styles.textColor = [5, 150, 105];
+                                data.cell.styles.fontStyle = 'bold';
+                            }
+                        }
+                    }
+                });
+
+                doc.save(`Physics_Attendance_${log.semester}_${log.date}.pdf`);
+                showToast("Session attendance sheet downloaded as PDF!", "success");
+            } catch (e) {
+                console.error(e);
+                showToast("Could not export session PDF.", "error");
+            }
+        }
+
+        // --- UI UTILITIES ---
+        function updateTotalBadge() {
+            const badge = document.getElementById('badge-total-logs');
+            if (badge) badge.textContent = activityLogs.length;
+        }
+
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+
+            let colors = 'bg-slate-900 text-white border-slate-700';
+            let icon = 'check-circle-2';
+            if (type === 'error') {
+                colors = 'bg-rose-600 text-white border-rose-500';
+                icon = 'alert-circle';
+            } else if (type === 'info') {
+                colors = 'bg-indigo-600 text-white border-indigo-500';
+                icon = 'info';
+            }
+
+            toast.className = `pointer-events-auto flex items-center gap-2.5 px-4 py-3 rounded-xl border shadow-lg text-xs sm:text-sm font-medium transition-all duration-300 ${colors}`;
+            toast.innerHTML = `
+                <i data-lucide="${icon}" class="w-4 h-4 shrink-0"></i>
+                <span>${message}</span>
+            `;
+
+            container.appendChild(toast);
+            lucide.createIcons();
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(8px)';
+                setTimeout(() => toast.remove(), 300);
+            }, 3400);
+        }
+
+        // --- INITIALIZE ON LOAD ---
+        window.onload = function () {
+            loadStateFromStorage();
+            initDefaultDates();
+            handleSemesterChange();
+            renderRecentLogsTable();
+            renderReportView();
+            renderRosterManager();
+            updateTotalBadge();
+            checkLiveSlotConflict();
+            lucide.createIcons();
+        };
+    </script>
+</body>
+</html>
