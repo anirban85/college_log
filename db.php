@@ -6,12 +6,17 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-// Database configuration (Standard XAMPP default settings)
-define('DB_HOST', '127.0.0.1');
-define('DB_PORT', '3306');
-define('DB_USER', 'root');
-define('DB_PASS', '');
-define('DB_NAME', 'college_log_db');
+// Optional custom configuration file (e.g., for cPanel / production hosting)
+if (file_exists(__DIR__ . '/config.php')) {
+    require_once __DIR__ . '/config.php';
+}
+
+// Database configuration defaults (XAMPP default settings)
+if (!defined('DB_HOST')) define('DB_HOST', getenv('DB_HOST') ?: '127.0.0.1');
+if (!defined('DB_PORT')) define('DB_PORT', getenv('DB_PORT') ?: '3306');
+if (!defined('DB_USER')) define('DB_USER', getenv('DB_USER') ?: 'root');
+if (!defined('DB_PASS')) define('DB_PASS', getenv('DB_PASS') !== false ? getenv('DB_PASS') : '');
+if (!defined('DB_NAME')) define('DB_NAME', getenv('DB_NAME') ?: 'college_log_db');
 
 /**
  * Returns a PDO connection to the database.
@@ -23,39 +28,49 @@ function get_db_connection() {
         return $pdo;
     }
 
+    $dsnDb = "mysql:host=" . DB_HOST . ";port=" . DB_PORT . ";dbname=" . DB_NAME . ";charset=utf8mb4";
+    $pdoOptions = [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        PDO::ATTR_EMULATE_PREPARES => false,
+    ];
+
     try {
-        // Step 1: Connect to MySQL server without database first to ensure DB exists
-        $dsnServer = "mysql:host=" . DB_HOST . ";port=" . DB_PORT . ";charset=utf8mb4";
-        $serverPdo = new PDO($dsnServer, DB_USER, DB_PASS, [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-            PDO::ATTR_EMULATE_PREPARES => false,
-        ]);
-
-        $serverPdo->exec("CREATE DATABASE IF NOT EXISTS `" . DB_NAME . "` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;");
-
-        // Step 2: Connect to the specific database
-        $dsnDb = "mysql:host=" . DB_HOST . ";port=" . DB_PORT . ";dbname=" . DB_NAME . ";charset=utf8mb4";
-        $pdo = new PDO($dsnDb, DB_USER, DB_PASS, [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-            PDO::ATTR_EMULATE_PREPARES => false,
-        ]);
-
-        // Step 3: Ensure tables exist
+        // Step 1: Attempt direct connection to database (standard for cPanel & production)
+        $pdo = new PDO($dsnDb, DB_USER, DB_PASS, $pdoOptions);
         initialize_database_tables($pdo);
-
         return $pdo;
-    } catch (PDOException $e) {
-        if (!empty($_SERVER['HTTP_ACCEPT']) && strpos($_SERVER['HTTP_ACCEPT'], 'application/json') !== false) {
-            header('Content-Type: application/json');
-            echo json_encode([
-                'success' => false,
-                'error' => 'Database connection failed: ' . $e->getMessage()
-            ]);
-            exit;
+    } catch (PDOException $directEx) {
+        // Step 2: If database does not exist, attempt auto-creation (XAMPP local dev convenience)
+        try {
+            $dsnServer = "mysql:host=" . DB_HOST . ";port=" . DB_PORT . ";charset=utf8mb4";
+            $serverPdo = new PDO($dsnServer, DB_USER, DB_PASS, $pdoOptions);
+            $serverPdo->exec("CREATE DATABASE IF NOT EXISTS `" . DB_NAME . "` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;");
+
+            $pdo = new PDO($dsnDb, DB_USER, DB_PASS, $pdoOptions);
+            initialize_database_tables($pdo);
+            return $pdo;
+        } catch (Exception $e) {
+            $errorMsg = $directEx->getMessage();
+            if (!empty($_SERVER['HTTP_ACCEPT']) && strpos($_SERVER['HTTP_ACCEPT'], 'application/json') !== false) {
+                header('Content-Type: application/json');
+                echo json_encode([
+                    'success' => false,
+                    'error' => 'Database connection failed: ' . $errorMsg
+                ]);
+                exit;
+            }
+            die("<div style='font-family:sans-serif;padding:30px;max-width:650px;margin:50px auto;border:1px solid #fca5a5;background:#fef2f2;border-radius:12px;color:#991b1b;'>
+                <h2 style='margin-top:0;'>Database Connection Failed</h2>
+                <p>Could not connect to database <code>" . htmlspecialchars(DB_NAME) . "</code> on <code>" . htmlspecialchars(DB_HOST) . "</code>.</p>
+                <p><strong>Error details:</strong> " . htmlspecialchars($errorMsg) . "</p>
+                <hr style='border:none;border-top:1px solid #fca5a5;margin:18px 0;'>
+                <p style='font-size:13px;line-height:1.6;color:#7f1d1d;'>
+                    <strong>cPanel / Remote Server Note:</strong> Create a database in your hosting control panel, assign a user with all privileges, and provide credentials either directly in <code>db.php</code> or by creating a <code>config.php</code> file with:
+                    <br><code>&lt;?php define('DB_USER', 'your_user'); define('DB_PASS', 'your_pass'); define('DB_NAME', 'your_dbname');</code>
+                </p>
+            </div>");
         }
-        die("<h3>Database Connection Error</h3><p>" . htmlspecialchars($e->getMessage()) . "</p><p>Please ensure MySQL is running in your XAMPP Control Panel.</p>");
     }
 }
 
