@@ -36,21 +36,29 @@ function get_db_connection() {
     ];
 
     try {
-        // Step 1: Attempt direct connection to database (standard for cPanel & production)
+        // Step 1: Direct connection to target database (cPanel, live server, or existing local DB)
         $pdo = new PDO($dsnDb, DB_USER, DB_PASS, $pdoOptions);
-        initialize_database_tables($pdo);
-        return $pdo;
     } catch (PDOException $directEx) {
-        // Step 2: If database does not exist, attempt auto-creation (XAMPP local dev convenience)
-        try {
-            $dsnServer = "mysql:host=" . DB_HOST . ";port=" . DB_PORT . ";charset=utf8mb4";
-            $serverPdo = new PDO($dsnServer, DB_USER, DB_PASS, $pdoOptions);
-            $serverPdo->exec("CREATE DATABASE IF NOT EXISTS `" . DB_NAME . "` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;");
+        // Step 2: Fallback for fresh local XAMPP where the database hasn't been created yet
+        $errorCode = $directEx->errorInfo[1] ?? 0;
+        $isUnknownDb = ($errorCode == 1049)
+            || strpos($directEx->getMessage(), '1049') !== false
+            || stripos($directEx->getMessage(), 'unknown database') !== false;
 
-            $pdo = new PDO($dsnDb, DB_USER, DB_PASS, $pdoOptions);
-            initialize_database_tables($pdo);
-            return $pdo;
-        } catch (Exception $e) {
+        $created = false;
+        if ($isUnknownDb) {
+            try {
+                $dsnServer = "mysql:host=" . DB_HOST . ";port=" . DB_PORT . ";charset=utf8mb4";
+                $serverPdo = new PDO($dsnServer, DB_USER, DB_PASS, $pdoOptions);
+                $serverPdo->exec("CREATE DATABASE IF NOT EXISTS `" . DB_NAME . "` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;");
+                $pdo = new PDO($dsnDb, DB_USER, DB_PASS, $pdoOptions);
+                $created = true;
+            } catch (Exception $serverEx) {
+                $created = false;
+            }
+        }
+
+        if (!$created && $pdo === null) {
             $errorMsg = $directEx->getMessage();
             if (!empty($_SERVER['HTTP_ACCEPT']) && strpos($_SERVER['HTTP_ACCEPT'], 'application/json') !== false) {
                 header('Content-Type: application/json');
@@ -66,12 +74,35 @@ function get_db_connection() {
                 <p><strong>Error details:</strong> " . htmlspecialchars($errorMsg) . "</p>
                 <hr style='border:none;border-top:1px solid #fca5a5;margin:18px 0;'>
                 <p style='font-size:13px;line-height:1.6;color:#7f1d1d;'>
-                    <strong>cPanel / Remote Server Note:</strong> Create a database in your hosting control panel, assign a user with all privileges, and provide credentials either directly in <code>db.php</code> or by creating a <code>config.php</code> file with:
-                    <br><code>&lt;?php define('DB_USER', 'your_user'); define('DB_PASS', 'your_pass'); define('DB_NAME', 'your_dbname');</code>
+                    <strong>cPanel / Remote Server Note:</strong> Verify that database <code>" . htmlspecialchars(DB_NAME) . "</code> exists and user <code>" . htmlspecialchars(DB_USER) . "</code> is added to it with <strong>ALL PRIVILEGES</strong> in cPanel MySQL Databases.
                 </p>
             </div>");
         }
     }
+
+    // Step 3: Initialize schema tables if not present
+    try {
+        initialize_database_tables($pdo);
+    } catch (Exception $schemaEx) {
+        $errorMsg = $schemaEx->getMessage();
+        if (!empty($_SERVER['HTTP_ACCEPT']) && strpos($_SERVER['HTTP_ACCEPT'], 'application/json') !== false) {
+            header('Content-Type: application/json');
+            echo json_encode([
+                'success' => false,
+                'error' => 'Database table initialization failed: ' . $errorMsg
+            ]);
+            exit;
+        }
+        die("<div style='font-family:sans-serif;padding:30px;max-width:650px;margin:50px auto;border:1px solid #fca5a5;background:#fef2f2;border-radius:12px;color:#991b1b;'>
+            <h2 style='margin-top:0;'>Database Table Setup Failed</h2>
+            <p>Connected to database <code>" . htmlspecialchars(DB_NAME) . "</code>, but automatic table creation failed.</p>
+            <p><strong>Error details:</strong> " . htmlspecialchars($errorMsg) . "</p>
+            <hr style='border:none;border-top:1px solid #fca5a5;margin:18px 0;'>
+            <p style='font-size:13px;color:#7f1d1d;'>Please ensure the database user has <strong>CREATE TABLE</strong> permissions on database <code>" . htmlspecialchars(DB_NAME) . "</code>.</p>
+        </div>");
+    }
+
+    return $pdo;
 }
 
 /**
@@ -85,8 +116,30 @@ function initialize_database_tables($pdo) {
     if (!$exists) {
         $schemaFile = __DIR__ . '/schema.sql';
         if (file_exists($schemaFile)) {
-            $sql = file_get_contents($schemaFile);
-            $pdo->exec($sql);
+            $rawSql = file_get_contents($schemaFile);
+
+            // Remove full-line comments
+            $cleanLines = [];
+            foreach (explode("\n", $rawSql) as $line) {
+                $trimmed = trim($line);
+                if ($trimmed === '' || strpos($trimmed, '--') === 0 || strpos($trimmed, '/*') === 0) {
+                    continue;
+                }
+                $cleanLines[] = $line;
+            }
+            $cleanSql = implode("\n", $cleanLines);
+
+            // Strip any USE or CREATE DATABASE commands to ensure strict compatibility with shared hosting
+            $cleanSql = preg_replace('/CREATE\s+DATABASE\s+[^;]+;/i', '', $cleanSql);
+            $cleanSql = preg_replace('/USE\s+[^;]+;/i', '', $cleanSql);
+
+            // Split into individual SQL statements and execute each
+            $statements = array_filter(array_map('trim', explode(';', $cleanSql)));
+            foreach ($statements as $statement) {
+                if (!empty($statement)) {
+                    $pdo->exec($statement);
+                }
+            }
         }
     }
 }

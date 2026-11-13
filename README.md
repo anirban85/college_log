@@ -13,8 +13,8 @@ A modern, full-stack college logbook and student attendance tracker built for co
    - 1-Click Faculty Switcher: Easily switch between registered faculty profiles on shared department terminals.
 
 2. **100% SQL Database Storage**
-   - All records are saved in MySQL database: `college_log_db`.
-   - **Zero-Config Auto-Migration**: When accessed for the first time, the application automatically creates the database and all necessary tables (`users`, `daily_timings`, `activity_logs`, `semester_rosters`) and seeds default demo data.
+   - Compatible with MySQL 5.7+ / MariaDB 10.3+ (Local XAMPP and cPanel/Cloud hosting).
+   - **Zero-Config Auto-Migration**: When accessed for the first time, the application automatically creates tables (`users`, `daily_timings`, `activity_logs`, `semester_rosters`) inside the connected database.
 
 3. **Daily Campus Arrival & Departure Log**
    - Punch In / Punch Out buttons with real-time timestamp capture.
@@ -66,7 +66,35 @@ Visit the application in your browser:
 ```
 http://localhost/college_log/
 ```
-The database `college_log_db` and tables will be created automatically on first load!
+The database and tables will be created automatically on first load!
+
+---
+
+## 🌐 Live Server / cPanel Deployment
+
+When deploying to cPanel or shared/cloud hosting (e.g. `log.python4physics.in`):
+
+1. **Clone or Upload Files:**
+   Clone this repo via cPanel **Git Version Control** or extract the files into `public_html/` (or your subdomain folder).
+
+2. **Create MySQL Database & User in cPanel:**
+   - Go to **cPanel > MySQL Databases**.
+   - Create a new database (e.g. `username_log`).
+   - Create a MySQL user with a secure password (e.g. `username_user`).
+   - Add the user to the database with **ALL PRIVILEGES**.
+
+3. **Configure Database Connection:**
+   - Create a `config.php` file in the project root (or copy `config.example.php` to `config.php`):
+   ```php
+   <?php
+   define('DB_HOST', 'localhost');
+   define('DB_PORT', '3306');
+   define('DB_NAME', 'username_log');
+   define('DB_USER', 'username_user');
+   define('DB_PASS', 'your_secure_password');
+   ```
+4. **Automatic Table Creation:**
+   - Just open your site in the browser! The application connects to your database and automatically creates all required tables.
 
 ---
 

@@ -1,8 +1,5 @@
 -- EduTrack Pro — Faculty College Log & Attendance Tracker Database Schema
--- Compatible with MySQL 5.7+ / MariaDB 10.3+ (XAMPP Default)
-
-CREATE DATABASE IF NOT EXISTS `college_log_db` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE `college_log_db`;
+-- Compatible with MySQL 5.7+ / MariaDB 10.3+ (XAMPP, cPanel, Cloud Hosting)
 
 -- 1. Users Table (Authentication & Faculty Profiles)
 CREATE TABLE IF NOT EXISTS `users` (

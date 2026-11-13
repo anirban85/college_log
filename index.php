@@ -210,7 +210,7 @@ $isLoggedIn = ($currentUser !== null);
             <div class="px-6 py-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400">
                 <span class="flex items-center gap-1.5">
                     <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-                    <span>MySQL Database: college_log_db</span>
+                    <span>MySQL Database: <?= htmlspecialchars(defined('DB_NAME') ? DB_NAME : 'college_log_db') ?></span>
                 </span>
                 <span>Protected Faculty Session</span>
             </div>
@@ -435,7 +435,7 @@ $isLoggedIn = ($currentUser !== null);
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex flex-wrap items-center justify-between gap-2">
             <div class="flex items-center gap-2">
                 <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                <span class="font-medium">Connected to MySQL Database: <strong class="text-white font-mono">college_log_db</strong> (Active Workspace: <span class="text-emerald-300 font-semibold"><?= htmlspecialchars($currentUser['full_name']) ?></span>)</span>
+                <span class="font-medium">Connected to MySQL Database: <strong class="text-white font-mono"><?= htmlspecialchars(defined('DB_NAME') ? DB_NAME : 'college_log_db') ?></strong> (Active Workspace: <span class="text-emerald-300 font-semibold"><?= htmlspecialchars($currentUser['full_name']) ?></span>)</span>
             </div>
             <div class="flex items-center gap-3">
                 <span class="text-[11px] font-mono px-2 py-0.5 rounded bg-indigo-900/90 text-indigo-200 border border-indigo-800">User: @<?= htmlspecialchars($currentUser['username']) ?></span>
